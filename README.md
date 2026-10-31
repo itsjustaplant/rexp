@@ -4,7 +4,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 0.1.0. `new` creates starter project configurations, `list` shows saved project names, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `edit` and `start` currently return explicit not-implemented errors. No Rex sessions are created yet.
+The source version is currently 0.1.0. `new` creates starter project configurations, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `edit` and `start` currently return explicit not-implemented errors. No Rex sessions are created yet.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -49,7 +49,7 @@ cd ~/projects/my-app
 rexp new my-app
 ```
 
-This creates `~/.rexp/projects/my-app.yaml`, recording the current absolute directory as `root` and a starter tab with one shell pane. Names must start with an ASCII letter or digit and contain at most 64 ASCII letters, digits, hyphens, or underscores. Windows-reserved names are rejected on all platforms. Existing configurations are never overwritten. New files use owner-only permissions on Unix.
+This creates `~/.rexp/projects/my-app.yaml`, recording schema version 1, the current absolute directory as `root`, and a starter tab with a single `layout.pane`. Names must start with an ASCII letter or digit and contain at most 64 ASCII letters, digits, hyphens, or underscores. Windows-reserved names are rejected on all platforms. Existing configurations are never overwritten. New files use owner-only permissions on Unix.
 
 `--edit` (or `-e`) reserves the option to open the new file immediately. Editor launching is deferred: currently the file is created and a notice explains that no editor was opened.
 
@@ -57,7 +57,48 @@ This creates `~/.rexp/projects/my-app.yaml`, recording the current absolute dire
 rexp new my-app --edit
 ```
 
-The generated YAML layout is a starter schema; launching it will be implemented with `start`.
+## Layout configuration
+
+```yaml
+schema_version: 1
+name: my-app
+root: /absolute/path/to/my-app
+tabs:
+  - name: Development
+    focus: editor
+    layout:
+      split: columns
+      sizes: [50, 50]
+      children:
+        - pane: editor
+          command: [nvim, .]
+        - split: rows
+          sizes: [34, 33, 33]
+          children:
+            - pane: server
+              cwd: ./backend
+              command: [npm, run, dev]
+            - pane: logs
+              command: [tail, -f, ./logs/app.log]
+            - pane: shell
+              command: []
+```
+
+`columns` arranges children left to right and divides width; `rows` arranges them top to bottom and divides height. `sizes` contains positive integer percentages summing to 100, one per child. Omit `sizes` for equal shares. Groups may nest, with at least two children per split. Each pane fills its parent's other dimension. Actual terminal sizes will depend on cell rounding and minimum sizes when launching is implemented.
+
+Each layout node defines either `pane` or `split`. Split nodes accept only `split`, `sizes`, and `children`; panes accept only `pane`, `command`, and `cwd`. Pane identifiers follow project-name rules and must be unique across the project. Tab names must be nonempty and unique. `focus` must name a pane within its tab; omit it to focus the first pane. The first tab will initially be selected when launch support is added.
+
+Pane `cwd` defaults to `root`, and relative values resolve against `root`. Root must be absolute; use native paths for your OS. `command` is an array of strings; omitted or empty opens an interactive shell. Shell syntax needs an explicit shell, such as `[sh, -c, "npm run build && npm test"]`.
+
+## Validate a configuration
+
+```sh
+rexp validate my-app
+```
+
+Checks YAML syntax, schema version, names, node types, percentages, focus references, and command types. Unknown fields, duplicate YAML keys, aliases, null values, and multiple YAML documents are rejected. Layout nesting is limited to 32 levels. No commands run, and no Rex connection is made. This checks configuration structure, not whether paths/programs exist or the Rex server supports a particular layout.
+
+See [the four-pane example](examples/four-panes.yaml). Existing files created with the previous `tabs[].panes` template are not automatically rewritten: add `schema_version: 1` and replace each tab's `panes` with a `layout` tree. `list` and `delete` still work on those filenames without parsing them.
 
 ## List projects
 

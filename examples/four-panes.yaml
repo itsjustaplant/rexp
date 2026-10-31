@@ -1,0 +1,23 @@
+# Change root to your project's absolute directory before launching.
+schema_version: 1
+name: four-panes
+root: /path/to/project
+tabs:
+  - name: Development
+    focus: editor
+    layout:
+      split: columns
+      sizes: [50, 50]
+      children:
+        - pane: editor
+          command: [nvim, .]
+        - split: rows
+          sizes: [34, 33, 33]
+          children:
+            - pane: server
+              cwd: ./backend
+              command: [npm, run, dev]
+            - pane: logs
+              command: [tail, -f, ./logs/app.log]
+            - pane: shell
+              command: []

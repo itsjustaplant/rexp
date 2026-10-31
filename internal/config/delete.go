@@ -26,7 +26,7 @@ func ProjectFile(name string) (string, error) {
 		return "", fmt.Errorf("inspect project configuration: %w", err)
 	}
 	if !info.Mode().IsRegular() {
-		return "", fmt.Errorf("project configuration %q must be a regular file; directories and symbolic links cannot be deleted", path)
+		return "", fmt.Errorf("project configuration %q must be a regular file; directories and symbolic links are not supported", path)
 	}
 	return path, nil
 }

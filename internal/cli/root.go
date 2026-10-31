@@ -31,6 +31,7 @@ func NewCommand(version string) *cobra.Command {
 		edit,
 		pendingCommand("start <project>", "Open a project workspace in Rex (not implemented)", cobra.ExactArgs(1)),
 		listProjectsCommand(),
+		validateProjectCommand(),
 	)
 	return root
 }

@@ -59,13 +59,14 @@ func CreateProject(name, root string) (string, error) {
 	}
 	content := fmt.Sprintf(`# rexp project configuration
 # Pane directories will be relative to root. An empty command opens a shell.
+schema_version: 1
 name: %s
 root: %s
 tabs:
   - name: Terminal
-    panes:
-      - name: Shell
-        command: []
+    layout:
+      pane: shell
+      command: []
 `, quotedName, quotedRoot)
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if errors.Is(err, os.ErrExist) {
