@@ -1,0 +1,23 @@
+# Replace root with an existing absolute directory before saving this as
+# ~/.rexp/projects/four-shells.yaml. All panes open interactive shells.
+schema_version: 1
+name: four-shells
+root: /path/to/project
+tabs:
+  - name: Development
+    focus: editor
+    layout:
+      split: columns
+      sizes: [50, 50]
+      children:
+        - pane: editor
+          command: []
+        - split: rows
+          sizes: [34, 33, 33]
+          children:
+            - pane: server
+              command: []
+            - pane: logs
+              command: []
+            - pane: shell
+              command: []

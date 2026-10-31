@@ -2,6 +2,11 @@
 
 ## 0.1.0 — Unreleased
 
+- Add nested pane layout configuration and `validate` for checking saved YAML.
+- Add `start` to launch Rex tabs, panes, and commands, with existing-session reuse.
+- Add `start --background` and `--client` for controlling Rex app selection.
+- Preserve partial workspaces after startup failures and prevent automatic reruns.
+
 - Initialize the user's `.rexp/projects` directory on startup.
 - Add `new` to create starter YAML configurations with name validation and overwrite protection.
 - Add `delete` with confirmation and an optional `--yes` flag.

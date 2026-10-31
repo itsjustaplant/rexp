@@ -4,7 +4,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 0.1.0. `new` creates starter project configurations, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `edit` and `start` currently return explicit not-implemented errors. No Rex sessions are created yet.
+The source version is currently 0.1.0. `new` creates starter project configurations, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` is not implemented yet.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -18,7 +18,7 @@ The actual path comes from Go's `os.UserHomeDir` (`HOME` on macOS/Linux, `USERPR
 
 ## Development
 
-Requires Go 1.25 or newer. Download dependencies and generate `go.sum` first:
+Requires Go 1.25 or newer. Download dependencies and complete any missing `go.sum` entries first:
 
 ```sh
 go mod tidy
@@ -84,9 +84,9 @@ tabs:
               command: []
 ```
 
-`columns` arranges children left to right and divides width; `rows` arranges them top to bottom and divides height. `sizes` contains positive integer percentages summing to 100, one per child. Omit `sizes` for equal shares. Groups may nest, with at least two children per split. Each pane fills its parent's other dimension. Actual terminal sizes will depend on cell rounding and minimum sizes when launching is implemented.
+`columns` arranges children left to right and divides width; `rows` arranges them top to bottom and divides height. `sizes` contains positive integer percentages summing to 100, one per child. Omit `sizes` for equal shares. Groups may nest, with at least two children per split. Each pane fills its parent's other dimension. Rex's CLI accepts integer split percentages, so some proportions are approximate; terminal cells and minimum pane sizes can also affect the result. Layouts requiring ratios outside Rex's 1–99 range are rejected before creation.
 
-Each layout node defines either `pane` or `split`. Split nodes accept only `split`, `sizes`, and `children`; panes accept only `pane`, `command`, and `cwd`. Pane identifiers follow project-name rules and must be unique across the project. Tab names must be nonempty and unique. `focus` must name a pane within its tab; omit it to focus the first pane. The first tab will initially be selected when launch support is added.
+Each layout node defines either `pane` or `split`. Split nodes accept only `split`, `sizes`, and `children`; panes accept only `pane`, `command`, and `cwd`. Pane identifiers follow project-name rules and must be unique across the project. Tab names must be nonempty and unique. `focus` must name a pane within its tab; omit it to focus the first pane. The first tab is initially selected on creation. Reusing an existing session preserves its current layout and focus.
 
 Pane `cwd` defaults to `root`, and relative values resolve against `root`. Root must be absolute; use native paths for your OS. `command` is an array of strings; omitted or empty opens an interactive shell. Shell syntax needs an explicit shell, such as `[sh, -c, "npm run build && npm test"]`.
 
@@ -124,14 +124,32 @@ rexp delete my-app -y
 
 Only `~/.rexp/projects/my-app.yaml` is removed. The project's source directory, other configurations, and running Rex sessions are left alone. Missing configurations, invalid names, directories, and symbolic links are rejected. Deleted configurations are not moved to a trash folder.
 
-## Planned launch workflow
+## Start a workspace
 
-Then launch the workspace from any directory:
+Launch a saved configuration from any directory:
 
 ```sh
 rexp start my-app
+rexp start my-app --background
+rexp start my-app --client <rex-client-id-or-label>
 ```
 
-The intended behavior is to create the configured Rex session or select the existing project session. Editing uses `rexp edit my-app`; saved projects are listed with `rexp list`.
+Requires the Rex CLI on `PATH` and a reachable Rex server. `start` validates the entire configuration and checks all configured directories before creating terminals. This initial implementation is intended for local workspaces; it inherits Rex's server selection environment (`REX_SERVER`). Directory checks run on the machine running rexp.
 
-Launching and editing are planned and are not available yet.
+Each project uses a session named `rexp:<project>`. A subsequent `start` selects that session without rerunning commands or applying configuration edits. Duplicate labels, labels differing only in case, and incomplete startups return errors. Session labels identify workspaces: renaming the session breaks this association. Avoid running simultaneous starts for the same project.
+
+Rexp creates tabs and nested splits using returned Rex IDs, passes commands as argument arrays, labels each pane, and sets each tab's configured focus. Commands run once when their panes are created. Rex owns the terminals after rexp exits. Panes remain open after commands exit so their output is visible; successfully creating a pane does not mean its application is healthy. There is no readiness checking or dependency ordering between pane commands.
+
+Selecting a session in the app requires Rex Remote Control. With multiple clients, use `--client` (or Rex's `REX_CLIENT` environment). `--background` skips app selection; it cannot be combined with `--client`. A selection error can occur after successful setup: retrying reuses the completed session.
+
+During creation, the session is named `rexp:<project>:starting`. If setup fails, it remains under that name with existing panes running. Further starts stop with an error rather than rerunning commands. Inspect the session in Rex; close it manually before retrying, or finish it yourself and rename it to `rexp:<project>`. Rexp does not automatically delete sessions or undo commands after a failure.
+
+For a layout-only smoke test, use [the four-shell example](examples/four-shells.yaml), set `root` to an existing absolute directory, and save it as `~/.rexp/projects/four-shells.yaml`:
+
+```sh
+rexp validate four-shells
+rexp start four-shells
+rexp start four-shells
+```
+
+Expect one pane covering the left half and three stacked panes covering the right half, with the left pane focused. The second start prints `Reused` and creates no additional panes. Editing remains planned through `rexp edit my-app`.

@@ -11,7 +11,7 @@ func NewCommand(version string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "rexp",
 		Short:         "Project workspaces for Rex",
-		Long:          "rexp manages named project workspaces for Rex.\n\nCreate a starter configuration with new. Editing and session operations are not implemented yet.",
+		Long:          "rexp manages named project workspaces for Rex.\n\nCreate configurations with new, check them with validate, and launch layouts with start. Editor integration is not implemented yet.",
 		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -29,7 +29,7 @@ func NewCommand(version string) *cobra.Command {
 		newProjectCommand(),
 		deleteProjectCommand(),
 		edit,
-		pendingCommand("start <project>", "Open a project workspace in Rex (not implemented)", cobra.ExactArgs(1)),
+		startProjectCommand(),
 		listProjectsCommand(),
 		validateProjectCommand(),
 	)
