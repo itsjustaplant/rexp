@@ -9,7 +9,7 @@ import (
 )
 
 // Set at build time with -ldflags "-X main.version=...".
-var version = "0.0.1"
+var version = "0.1.0"
 
 func main() {
 	if err := config.Initialize(); err != nil {

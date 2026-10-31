@@ -4,7 +4,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 0.0.1. `new` creates starter project configurations, `list` shows saved project names, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `edit` and `start` currently return explicit not-implemented errors. No Rex sessions are created yet.
+The source version is currently 0.1.0. `new` creates starter project configurations, `list` shows saved project names, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `edit` and `start` currently return explicit not-implemented errors. No Rex sessions are created yet.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -27,7 +27,7 @@ go run . --version
 go run . new --help
 ```
 
-`go run . --version` prints `rexp 0.0.1`.
+`go run . --version` prints `rexp 0.1.0`.
 
 Build and check:
 
