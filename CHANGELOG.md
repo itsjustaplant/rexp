@@ -1,14 +1,13 @@
 # Changelog
 
-## 0.4.0 — Unreleased
+## 0.5.0 — Unreleased
 
 - Simplify successful save output to a single `Saved <path>` line.
-
 - Add project/tab/pane environment overrides with scoped precedence, native name handling, and effective-PATH command lookup.
-
 - Add sequential pane `commands` with literal argument arrays, failure stopping, and cancellation.
-
 - Add initial tab selection with `selected: true`, including active-tab preservation in `save`.
+
+## 0.4.0
 
 - Report command lifecycle through OSC 7501: working, blocked for approval/editing, done, error, and idle on cancellation; suppress reports for redirected stderr and help/version.
 
