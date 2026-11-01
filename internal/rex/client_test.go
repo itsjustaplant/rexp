@@ -183,6 +183,51 @@ func TestStartWrapsSequencesForInitialTabNewTabsAndSplits(t *testing.T) {
 	}
 }
 
+func TestEnvironmentScopesReachEveryLaunchKind(t *testing.T) {
+	project := projectFixture(t)
+	project.Env = map[string]string{"LEVEL": "project", "PROJECT": "yes"}
+	project.Tabs[0].Env = map[string]string{"LEVEL": "tab", "TAB": "yes"}
+	project.Tabs[0].Layout = workspace.Layout{Split: "columns", Children: []workspace.Layout{
+		{Pane: "editor", Cwd: project.Root, Command: []string{"editor"}, Env: map[string]string{"LEVEL": "pane"}},
+		{Pane: "shell", Cwd: project.Root},
+	}}
+	project.Tabs = append(project.Tabs, workspace.Tab{Name: "Other", Focus: "sequence", Layout: workspace.Layout{Pane: "sequence", Cwd: project.Root, Commands: [][]string{{"echo", "first"}, {"echo", "second"}}}})
+	fake := &fakeRex{}
+	if _, err := (&Client{run: fake.run}).Start(context.Background(), project, Options{Background: true}); err != nil {
+		t.Fatal(err)
+	}
+	var payloads []panerunner.Payload
+	for _, call := range fake.calls {
+		if call[0] != "new" && call[0] != "split" && !(call[0] == "window" && call[1] == "new") {
+			continue
+		}
+		for i, arg := range call {
+			if arg == "--" {
+				payload, err := panerunner.Decode(call[i+3])
+				if err != nil {
+					t.Fatal(err)
+				}
+				payloads = append(payloads, payload)
+			}
+		}
+	}
+	if len(payloads) != 3 {
+		t.Fatalf("launches: %d", len(payloads))
+	}
+	if payloads[0].Env["LEVEL"] != "pane" || payloads[0].Env["PROJECT"] != "yes" || payloads[0].Env["TAB"] != "yes" || payloads[0].Commands[0][0] != "editor" {
+		t.Fatalf("initial pane: %+v", payloads[0])
+	}
+	if payloads[1].Env["LEVEL"] != "tab" || !payloads[1].Shell {
+		t.Fatalf("split shell: %+v", payloads[1])
+	}
+	if payloads[2].Env["LEVEL"] != "project" || payloads[2].Env["TAB"] != "" || len(payloads[2].Commands) != 2 {
+		t.Fatalf("second tab: %+v", payloads[2])
+	}
+	if project.Env["LEVEL"] != "project" || project.Tabs[0].Env["LEVEL"] != "tab" {
+		t.Fatal("mutated configuration environment")
+	}
+}
+
 func TestStartSplitsSiblingRegionsBeforeTheirChildren(t *testing.T) {
 	project := projectFixture(t)
 	leaf := func(name string) workspace.Layout { return workspace.Layout{Pane: name, Cwd: project.Root} }

@@ -1,0 +1,39 @@
+# Set root to an existing absolute directory and save as
+# ~/.rexp/projects/workspace-features.yaml. Uses sh (macOS/Linux).
+schema_version: 1
+name: workspace-features
+root: /path/to/project
+env:
+  LEVEL: project
+  PROJECT_ONLY: inherited-project
+tabs:
+  - name: Project shell
+    layout:
+      pane: project-shell
+      command: []
+  - name: Selected tab
+    selected: true
+    focus: sequence
+    env:
+      LEVEL: tab
+      TAB_ONLY: inherited-tab
+    layout:
+      split: columns
+      sizes: [50, 50]
+      children:
+        - pane: sequence
+          env:
+            LEVEL: pane
+            PANE_ONLY: pane-value
+          commands:
+            - [sh, -c, 'printf "1: LEVEL=%s PROJECT_ONLY=%s TAB_ONLY=%s PANE_ONLY=%s\n" "$LEVEL" "$PROJECT_ONLY" "$TAB_ONLY" "$PANE_ONLY"']
+            - [sh, -c, 'printf "2: sequence finished successfully\n"']
+        - pane: tab-shell
+          command: []
+  - name: Failure stops sequence
+    layout:
+      pane: failure
+      commands:
+        - [sh, -c, 'printf "before failure\n"']
+        - [sh, -c, 'exit 7']
+        - [sh, -c, 'printf "ERROR: this must not run\n"']

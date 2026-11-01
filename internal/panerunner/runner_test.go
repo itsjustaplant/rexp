@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -30,6 +31,10 @@ func TestPaneHelperProcess(t *testing.T) {
 		os.Exit(9)
 	}
 	switch args[0] {
+	case "env":
+		for _, key := range args[1:] {
+			fmt.Fprintf(os.Stdout, "%s=%s\n", key, os.Getenv(key))
+		}
 	case "record":
 		file, err := os.OpenFile(args[1], os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 		if err != nil {
@@ -60,6 +65,90 @@ func helper(t *testing.T, args ...string) []string {
 		t.Fatal(err)
 	}
 	return append([]string{exe, "-test.run=^TestPaneHelperProcess$", "--"}, args...)
+}
+
+func TestMain(m *testing.M) {
+	if os.Getenv("REXP_RUNNER_SHELL_HELPER") == "1" {
+		fmt.Fprintf(os.Stdout, "shell:%s", os.Getenv("REXP_TEST_VALUE"))
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
+
+func TestRunnerAppliesEnvironmentWithoutChangingParent(t *testing.T) {
+	t.Setenv("REXP_TEST_INHERITED", "yes")
+	t.Setenv("REXP_TEST_VALUE", "parent")
+	commands := [][]string{helper(t, "env", "REXP_TEST_INHERITED", "REXP_TEST_VALUE"), helper(t, "env", "REXP_TEST_VALUE")}
+	invocation, err := InvocationWithEnvironment(commands, map[string]string{"REXP_TEST_VALUE": "pane"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	code, err := Run(context.Background(), invocation[2:], nil, &output, io.Discard)
+	if code != 0 || err != nil || output.String() != "REXP_TEST_INHERITED=yes\nREXP_TEST_VALUE=pane\nREXP_TEST_VALUE=pane\n" {
+		t.Fatalf("output=%q code=%d error=%v", output.String(), code, err)
+	}
+	if os.Getenv("REXP_TEST_VALUE") != "parent" {
+		t.Fatal("modified caller environment")
+	}
+}
+
+func TestRunnerEnvironmentOnlyPaneOpensShell(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	shellKey := "SHELL"
+	if runtime.GOOS == "windows" {
+		shellKey = "COMSPEC"
+	}
+	invocation, err := InvocationWithEnvironment(nil, map[string]string{shellKey: exe, "REXP_RUNNER_SHELL_HELPER": "1", "REXP_TEST_VALUE": "pane"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	code, err := Run(context.Background(), invocation[2:], nil, &output, io.Discard)
+	if code != 0 || err != nil || output.String() != "shell:pane" {
+		t.Fatalf("output=%q code=%d error=%v", output.String(), code, err)
+	}
+}
+
+func TestRunnerUsesOverriddenPathForProgramLookup(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	name := "pane-probe"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	source, err := os.Open(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer source.Close()
+	target, err := os.OpenFile(filepath.Join(dir, name), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o700)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(target, source); err != nil {
+		t.Fatal(err)
+	}
+	if err := target.Close(); err != nil {
+		t.Fatal(err)
+	}
+	command := helper(t, "env", "REXP_TEST_VALUE")
+	command[0] = name
+	invocation, err := InvocationWithEnvironment([][]string{command}, map[string]string{"PATH": dir, "REXP_TEST_VALUE": "newpath"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	code, err := Run(context.Background(), invocation[2:], nil, &output, io.Discard)
+	if code != 0 || err != nil || output.String() != "REXP_TEST_VALUE=newpath\n" {
+		t.Fatalf("PATH override: output=%q code=%d error=%v", output.String(), code, err)
+	}
 }
 
 func encoded(t *testing.T, commands [][]string) string {

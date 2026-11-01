@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 
 	"rexp/internal/workspace"
 )
@@ -19,16 +20,24 @@ import (
 const Mode = "__run-pane"
 
 type Payload struct {
-	Version  int        `json:"version"`
-	Commands [][]string `json:"commands"`
+	Version  int               `json:"version"`
+	Commands [][]string        `json:"commands"`
+	Env      map[string]string `json:"env,omitempty"`
+	Shell    bool              `json:"shell,omitempty"`
 }
 
 func (payload Payload) validate() error {
 	if payload.Version != 1 {
 		return errors.New("unsupported pane runner payload version")
 	}
-	if len(payload.Commands) == 0 {
+	if payload.Shell && len(payload.Commands) > 0 {
+		return errors.New("pane runner shell and commands are mutually exclusive")
+	}
+	if !payload.Shell && len(payload.Commands) == 0 {
 		return errors.New("pane runner requires at least one command")
+	}
+	if err := workspace.ValidateEnvironment(payload.Env, "env"); err != nil {
+		return err
 	}
 	for i, command := range payload.Commands {
 		if err := workspace.ValidateCommand(command, fmt.Sprintf("commands[%d]", i)); err != nil {
@@ -41,7 +50,11 @@ func (payload Payload) validate() error {
 // Invocation uses the same built binary, available at this absolute path on
 // the local Rex host. No dependence on the user's PATH for rexp itself.
 func Invocation(commands [][]string) ([]string, error) {
-	payload := Payload{Version: 1, Commands: commands}
+	return InvocationWithEnvironment(commands, nil, false)
+}
+
+func InvocationWithEnvironment(commands [][]string, env map[string]string, shell bool) ([]string, error) {
+	payload := Payload{Version: 1, Commands: commands, Env: env, Shell: shell}
 	if err := payload.validate(); err != nil {
 		return nil, err
 	}
@@ -84,13 +97,34 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	if err != nil {
 		return 2, err
 	}
-	for i, command := range payload.Commands {
+	environment := workspace.OverlayEnvironment(os.Environ(), payload.Env)
+	commands := payload.Commands
+	if payload.Shell {
+		shell := environmentValue(environment, "SHELL")
+		if runtime.GOOS == "windows" {
+			shell = environmentValue(environment, "COMSPEC")
+			if shell == "" {
+				shell = "cmd.exe"
+			}
+		} else if shell == "" {
+			shell = "/bin/sh"
+		}
+		commands = [][]string{{shell}}
+	}
+	for i, command := range commands {
 		if err := ctx.Err(); err != nil {
 			return 130, err
 		}
-		process := exec.CommandContext(ctx, command[0], command[1:]...)
+		program, lookupErr := findExecutable(command[0], environment)
+		process := exec.CommandContext(ctx, program, command[1:]...)
+		process.Args[0] = command[0]
+		process.Env = environment
 		process.Stdin, process.Stdout, process.Stderr = stdin, stdout, stderr
-		if err := process.Run(); err != nil {
+		runErr := lookupErr
+		if runErr == nil {
+			runErr = process.Run()
+		}
+		if err := runErr; err != nil {
 			if ctx.Err() != nil {
 				return 130, ctx.Err()
 			}

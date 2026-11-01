@@ -236,6 +236,7 @@ func (client *Client) Export(ctx context.Context, session, name, root string) (E
 	}
 	result.Warnings = append(result.Warnings, directoryWarnings...)
 	result.Warnings = append(result.Warnings, "Rex does not expose complete command arguments. Saved panes open shells; add commands manually to recreate your programs.", "Split sizes were rounded to integer percentages; the restored layout may differ slightly.")
+	result.Warnings = append(result.Warnings, "Environment overrides are not captured from live processes; add env mappings manually if needed.")
 	return result, nil
 }
 

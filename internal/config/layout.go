@@ -76,6 +76,9 @@ func DecodeProject(data []byte) (*Project, error) {
 		return nil, errors.New("root must not contain NUL")
 	}
 	project.Root = filepath.Clean(project.Root)
+	if err := workspace.ValidateEnvironment(project.Env, "env"); err != nil {
+		return nil, err
+	}
 	if len(project.Tabs) == 0 {
 		return nil, errors.New("tabs must contain at least one tab")
 	}
@@ -85,6 +88,9 @@ func DecodeProject(data []byte) (*Project, error) {
 	for i := range project.Tabs {
 		tab := &project.Tabs[i]
 		path := fmt.Sprintf("tabs[%d]", i)
+		if err := workspace.ValidateEnvironment(tab.Env, path+".env"); err != nil {
+			return nil, err
+		}
 		if tab.Selected {
 			if selected {
 				return nil, fmt.Errorf("%s.selected: at most one tab may be selected", path)
@@ -120,6 +126,9 @@ func validateLayout(layout *Layout, path, root string, all, local map[string]boo
 		return "", fmt.Errorf("%s must define exactly one of pane or split", path)
 	}
 	if layout.Pane != "" {
+		if err := workspace.ValidateEnvironment(layout.Env, path+".env"); err != nil {
+			return "", err
+		}
 		if layout.Children != nil || layout.Sizes != nil {
 			return "", fmt.Errorf("%s: a pane cannot define children or sizes", path)
 		}
@@ -163,6 +172,9 @@ func validateLayout(layout *Layout, path, root string, all, local map[string]boo
 	}
 	if layout.Commands != nil {
 		return "", fmt.Errorf("%s: a split cannot define commands", path)
+	}
+	if layout.Env != nil {
+		return "", fmt.Errorf("%s: env belongs to a project, tab, or pane, not a split", path)
 	}
 	if len(layout.Children) < 2 {
 		return "", fmt.Errorf("%s.children must contain at least two layouts", path)
@@ -211,6 +223,20 @@ func checkYAMLTypes(node *yaml.Node, path string, depth int) error {
 			field := path + "." + key.Value
 			if key.Tag != "!!str" {
 				return fmt.Errorf("%s: field names must be strings", path)
+			}
+			// Environment keys are user-defined names, not workspace field
+			// names (for example, env may legitimately contain a key 'command').
+			if key.Value == "env" {
+				if value.Kind != yaml.MappingNode {
+					return fmt.Errorf("%s must be a mapping of string names to string values", field)
+				}
+				for j := 0; j < len(value.Content); j += 2 {
+					name, val := value.Content[j], value.Content[j+1]
+					if name.Kind != yaml.ScalarNode || name.Tag != "!!str" || val.Kind != yaml.ScalarNode || val.Tag != "!!str" {
+						return fmt.Errorf("%s: environment names and values must be strings", field)
+					}
+				}
+				continue
 			}
 			tag, kind := "", yaml.Kind(0)
 			switch key.Value {
@@ -263,6 +289,9 @@ func checkYAMLTypes(node *yaml.Node, path string, depth int) error {
 		}
 		if fields["split"] && fields["commands"] {
 			return fmt.Errorf("%s: a split cannot define commands", path)
+		}
+		if fields["split"] && fields["env"] {
+			return fmt.Errorf("%s: env belongs to a project, tab, or pane, not a split", path)
 		}
 		if fields["split"] && (fields["cwd"] || fields["command"]) {
 			return fmt.Errorf("%s: a split cannot define command or cwd", path)

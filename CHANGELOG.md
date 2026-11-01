@@ -2,6 +2,8 @@
 
 ## 0.4.0 — Unreleased
 
+- Add project/tab/pane environment overrides with scoped precedence, native name handling, and effective-PATH command lookup.
+
 - Add sequential pane `commands` with literal argument arrays, failure stopping, and cancellation.
 
 - Add initial tab selection with `selected: true`, including active-tab preservation in `save`.

@@ -176,7 +176,7 @@ tabs:
 
 `columns` arranges children left to right and divides width; `rows` arranges them top to bottom and divides height. `sizes` contains positive integer percentages summing to 100, one per child. Omit `sizes` for equal shares. Groups may nest, with at least two children per split. Each pane fills its parent's other dimension. Rex's CLI accepts integer split percentages, so some proportions are approximate; terminal cells and minimum pane sizes can also affect the result. Layouts requiring ratios outside Rex's 1–99 range are rejected before creation.
 
-Each layout node defines either `pane` or `split`. Split nodes accept only `split`, `sizes`, and `children`; panes accept only `pane`, `command`, `commands`, and `cwd`. Pane identifiers follow project-name rules and must be unique across the project. Tab names must be nonempty and unique. `focus` must name a pane within its tab; omit it to focus the first pane. `selected: true` on a tab chooses the initial tab; at most one tab may be selected, and omitting it defaults to the first tab. Reusing an existing session preserves its current layout and focus.
+Each layout node defines either `pane` or `split`. Split nodes accept only `split`, `sizes`, and `children`; panes accept only `pane`, `command`, `commands`, `env`, and `cwd`. Pane identifiers follow project-name rules and must be unique across the project. Tab names must be nonempty and unique. `focus` must name a pane within its tab; omit it to focus the first pane. `selected: true` on a tab chooses the initial tab; at most one tab may be selected, and omitting it defaults to the first tab. Reusing an existing session preserves its current layout and focus.
 
 Pane `cwd` defaults to `root`, and relative values resolve against `root`. Root must be absolute; use native paths for your OS. `command` is an array of strings; omitted or empty opens an interactive shell. Shell syntax needs an explicit shell, such as `[sh, -c, "npm run build && npm test"]`.
 
@@ -197,13 +197,42 @@ Each entry is a separate process. Shell-local `cd`, `export`, and environment ac
 
 Sequences use a private runner in the same built rexp executable, launched inside the terminal. Use a built/installed binary that remains available at its absolute path on the local Rex host; avoid `go run . start` for sequence workspaces because its temporary executable can be removed. The runner does not initialize `.rexp` or emit rexp lifecycle statuses in application panes. Ctrl+C stops the sequence before later commands. Saving a live session still cannot reconstruct full command arguments/sequences.
 
+See [the combined workspace example](examples/workspace-features.yaml) for tab selection, sequences, scoped environment, and failure stopping together.
+
+## Environment configuration
+
+Set string-valued `env` maps on the project, a tab, or a pane. Values merge in this order: Rex's inherited launch/login environment → project → tab → pane. More specific values override broader values, including an explicitly empty string. Split groups do not accept `env`.
+
+```yaml
+env:
+  NODE_ENV: development
+tabs:
+  - name: Server
+    selected: true
+    env:
+      PORT: "3000"
+    layout:
+      pane: server
+      env:
+        DEBUG: "app:*"
+      command: [npm, run, dev]
+```
+
+Names must match `[A-Za-z_][A-Za-z0-9_]*`; values must be strings without NUL. Quote numeric and boolean-looking values. Maps with duplicate names are rejected; names merge case-insensitively on Windows and case-sensitively on Unix. Null/unset directives, `.env` loading, and variable expansion are not implemented. `$NAME`, `${NAME}`, and shell-looking expressions in values remain literal.
+
+Overrides are applied inside the terminal through the same private runner used for command sequences, after Rex establishes its login environment. Only explicit overrides are transported: inherited variables, such as the pane's Rex IDs, remain those provided by Rex unless explicitly overridden. All entries in a sequence receive the same final environment; command-side changes do not change the next process or the calling shell. Program lookup honors the final `PATH` (and `PATHEXT` on Windows); implicit execution from relative PATH entries is rejected in line with Go's `ErrDot` protection. Use explicit `./program` when intended.
+
+A shell-only pane with overrides starts the inherited/configured `SHELL`, falling back to `/bin/sh` on Unix, or `COMSPEC`/`cmd.exe` on Windows. Interactive shell startup files can subsequently modify the environment. Panes without overrides retain their normal Rex shell behavior. Use a built/installed rexp binary available on the local Rex host for environment overrides as well as sequences.
+
+Save records active-tab selection and layout, but it does not inspect/dump process environments or reconstruct command sequences; add the needed `env` and command fields manually to saved snapshots. Configuration files intentionally edited or serialized with these fields retain them.
+
 ## Validate a configuration
 
 ```sh
 rexp validate my-app
 ```
 
-Checks YAML syntax, schema version, names, node types, percentages, focus references, and command types. Unknown fields, duplicate YAML keys, aliases, null values, and multiple YAML documents are rejected. Layout nesting is limited to 32 levels. No commands run, and no Rex connection is made. This checks configuration structure, not whether paths/programs exist or the Rex server supports a particular layout.
+Checks YAML syntax, schema version, names, node types, percentages, tab selection, focus references, command sequences, and environment maps. Unknown fields, duplicate YAML keys, aliases, null values, and multiple YAML documents are rejected. Layout nesting is limited to 32 levels. No commands run, and no Rex connection is made. This checks configuration structure, not whether paths/programs exist or the Rex server supports a particular layout.
 
 See [the four-pane example](examples/four-panes.yaml). Existing files created with the previous `tabs[].panes` template are not automatically rewritten: add `schema_version: 1` and replace each tab's `panes` with a `layout` tree. `list` and `delete` still work on those filenames without parsing them.
 

@@ -194,13 +194,18 @@ func (client *Client) build(ctx context.Context, session string, node workspace.
 
 func launchCommands(project *workspace.Project) (map[string][]string, error) {
 	commands := map[string][]string{}
-	var walk func(workspace.Layout) error
-	walk = func(node workspace.Layout) error {
+	var walk func(workspace.Layout, map[string]string) error
+	walk = func(node workspace.Layout, inherited map[string]string) error {
 		if node.Pane != "" {
 			command := node.Command
-			if len(node.Commands) > 0 {
+			env := workspace.MergeEnvironment(inherited, node.Env)
+			if len(node.Commands) > 0 || len(env) > 0 {
+				sequence := node.Commands
+				if len(sequence) == 0 && len(command) > 0 {
+					sequence = [][]string{command}
+				}
 				var err error
-				command, err = panerunner.Invocation(node.Commands)
+				command, err = panerunner.InvocationWithEnvironment(sequence, env, len(sequence) == 0)
 				if err != nil {
 					return fmt.Errorf("prepare pane %q: %w", node.Pane, err)
 				}
@@ -209,14 +214,14 @@ func launchCommands(project *workspace.Project) (map[string][]string, error) {
 			return nil
 		}
 		for _, child := range node.Children {
-			if err := walk(child); err != nil {
+			if err := walk(child, inherited); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
 	for _, tab := range project.Tabs {
-		if err := walk(tab.Layout); err != nil {
+		if err := walk(tab.Layout, workspace.MergeEnvironment(project.Env, tab.Env)); err != nil {
 			return nil, err
 		}
 	}

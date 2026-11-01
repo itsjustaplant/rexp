@@ -3,17 +3,19 @@ package workspace
 
 // Project is version 1 of the saved workspace configuration.
 type Project struct {
-	SchemaVersion int    `yaml:"schema_version"`
-	Name          string `yaml:"name"`
-	Root          string `yaml:"root"`
-	Tabs          []Tab  `yaml:"tabs"`
+	SchemaVersion int               `yaml:"schema_version"`
+	Name          string            `yaml:"name"`
+	Root          string            `yaml:"root"`
+	Env           map[string]string `yaml:"env,omitempty"`
+	Tabs          []Tab             `yaml:"tabs"`
 }
 
 type Tab struct {
-	Name     string `yaml:"name"`
-	Selected bool   `yaml:"selected,omitempty"`
-	Focus    string `yaml:"focus,omitempty"`
-	Layout   Layout `yaml:"layout"`
+	Name     string            `yaml:"name"`
+	Selected bool              `yaml:"selected,omitempty"`
+	Env      map[string]string `yaml:"env,omitempty"`
+	Focus    string            `yaml:"focus,omitempty"`
+	Layout   Layout            `yaml:"layout"`
 }
 
 // InitialTab returns the selected tab, falling back to the first. Call only on
@@ -29,13 +31,14 @@ func (project *Project) InitialTab() Tab {
 
 // Layout is either a terminal pane or a group of rows/columns.
 type Layout struct {
-	Pane     string     `yaml:"pane,omitempty"`
-	Command  []string   `yaml:"command,omitempty"`
-	Commands [][]string `yaml:"commands,omitempty"`
-	Cwd      string     `yaml:"cwd,omitempty"`
-	Split    string     `yaml:"split,omitempty"`
-	Sizes    []int      `yaml:"sizes,omitempty"`
-	Children []Layout   `yaml:"children,omitempty"`
+	Pane     string            `yaml:"pane,omitempty"`
+	Command  []string          `yaml:"command,omitempty"`
+	Commands [][]string        `yaml:"commands,omitempty"`
+	Env      map[string]string `yaml:"env,omitempty"`
+	Cwd      string            `yaml:"cwd,omitempty"`
+	Split    string            `yaml:"split,omitempty"`
+	Sizes    []int             `yaml:"sizes,omitempty"`
+	Children []Layout          `yaml:"children,omitempty"`
 }
 
 // Shares returns each split child's fraction of its parent's width or height.
