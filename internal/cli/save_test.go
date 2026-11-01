@@ -99,7 +99,7 @@ esac
 	if project.Tabs[0].Layout.Cwd != root || project.Tabs[0].Layout.Pane != "editor" || len(project.Tabs[0].Layout.Command) != 0 {
 		t.Fatalf("saved pane: %+v", project.Tabs[0].Layout)
 	}
-	if !strings.Contains(output.String(), "Saved ") || !strings.Contains(warnings.String(), "complete command arguments") {
+	if output.String() != "Saved "+filepath.Join(home, ".rexp", "projects", "demo.yaml")+"\n" || warnings.Len() != 0 {
 		t.Fatalf("output=%q warnings=%q", output.String(), warnings.String())
 	}
 	// --session works independently of the shell environment, including labels

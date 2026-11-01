@@ -53,7 +53,7 @@ Rexp reports its own lifecycle using [Mitchell Hashimoto's Program Status Protoc
 | `error` | Argument parsing, initialization, or command execution failed. |
 | `idle` | Deletion was declined or the command was interrupted. |
 
-Reports use `app=rexp` and the named record `id=rexp` in the invoking terminal. This keeps them separate from reports made by editors and other programs. `start` completing means the workspace setup finished; it does not establish the health of programs launched in other panes. Save notices, such as unavailable process arguments, remain notices rather than errors after a successful save.
+Reports use `app=rexp` and the named record `id=rexp` in the invoking terminal. This keeps them separate from reports made by editors and other programs. `start` completing means the workspace setup finished; it does not establish the health of programs launched in other panes. Successful saves print only `Saved <path>`; export limitations are documented below.
 
 Status sequences are written only when stderr is a terminal. Stdout remains ordinary command output, and redirecting stderr to a file or pipe suppresses the sequences. Successful help and version invocations emit no status. `TERM=dumb` and `REXP_NO_STATUS=1` also disable reporting:
 
@@ -129,9 +129,9 @@ This creates `~/.rexp/projects/my-app.yaml` from the session identified by `REX_
 rexp save my-app --session <rex-session-id-or-label>
 ```
 
-The current directory becomes the configuration's `root`. Each pane gets its observed absolute directory: foreground process first, then the nearest readable ancestor, then the terminal's child process. If no process directory is available, save uses the last reported terminal directory and prints a notice. If no absolute directory can be obtained, saving fails rather than substituting an unrelated path.
+The current directory becomes the configuration's `root`. Each pane gets its observed absolute directory: foreground process first, then the nearest readable ancestor, then the terminal's child process. If no process directory is available, save uses the last reported terminal directory. If no absolute directory can be obtained, saving fails rather than substituting an unrelated path.
 
-Save preserves tab order, tab labels, nested horizontal/vertical splits, and each tab's focused pane. Split fractions are rounded to integer percentages summing to 100; very narrow splits that would round to 0 or 100 are rejected. Invalid or duplicate pane labels are given valid unique identifiers, and blank/duplicate tab names are normalized with notices. Save records the active tab as `selected: true`, retaining tab order and each tab's pane focus.
+Save preserves tab order, tab labels, nested horizontal/vertical splits, and each tab's focused pane. Split fractions are rounded to integer percentages summing to 100; very narrow splits that would round to 0 or 100 are rejected. Invalid or duplicate pane labels are given valid unique identifiers, and blank/duplicate tab names are normalized. Save records the active tab as `selected: true`, retaining tab order and each tab's pane focus.
 
 **Rex does not expose complete process arguments.** Saved panes open interactive shells; add `command` arrays manually before starting if you want to launch programs. Saving does not capture terminal scrollback, shell history, environment changes, editor buffers, or running process state. It does not replay commands inferred from a title or process name.
 

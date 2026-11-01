@@ -2,6 +2,8 @@
 
 ## 0.4.0 — Unreleased
 
+- Simplify successful save output to a single `Saved <path>` line.
+
 - Add project/tab/pane environment overrides with scoped precedence, native name handling, and effective-PATH command lookup.
 
 - Add sequential pane `commands` with literal argument arrays, failure stopping, and cancellation.

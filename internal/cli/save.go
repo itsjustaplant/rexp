@@ -60,9 +60,6 @@ func saveProjectCommand() *cobra.Command {
 			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Saved %s\n", path); err != nil {
 				return err
 			}
-			for _, warning := range result.Warnings {
-				cmd.PrintErrln(warning)
-			}
 			return nil
 		},
 	}
