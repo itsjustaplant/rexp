@@ -12,10 +12,11 @@ import (
 
 func newProjectCommand() *cobra.Command {
 	var edit bool
+	var override string
 	cmd := &cobra.Command{
 		Use:     "new <project>",
 		Short:   "Create a project configuration",
-		Long:    "Create a starter YAML configuration in ~/.rexp/projects using the current directory as its root.\nExisting configurations are never overwritten. Editor launching is not implemented yet.",
+		Long:    "Create a starter YAML configuration in ~/.rexp/projects using the current directory as its root.\nExisting configurations are never overwritten. Use --edit to open the new file in an editor.",
 		Example: "  rexp new my-app\n  rexp new my-app --edit",
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -23,6 +24,9 @@ func newProjectCommand() *cobra.Command {
 			}
 			if err := cobra.ExactArgs(1)(cmd, args); err != nil {
 				return err
+			}
+			if cmd.Flags().Changed("editor") && !edit {
+				return errors.New("--editor requires --edit")
 			}
 			return config.ValidateProjectName(args[0])
 		},
@@ -37,11 +41,12 @@ func newProjectCommand() *cobra.Command {
 			}
 			cmd.Printf("Created %s\n", path)
 			if edit {
-				cmd.PrintErrln("Editor opening is not implemented yet; the configuration was created without opening an editor.")
+				return editProject(cmd, args[0], override)
 			}
 			return nil
 		},
 	}
-	cmd.Flags().BoolVarP(&edit, "edit", "e", false, "Open the new configuration in an editor (editor launching is not implemented yet)")
+	cmd.Flags().BoolVarP(&edit, "edit", "e", false, "Open the new configuration in an editor and validate after it exits")
+	cmd.Flags().StringVar(&override, "editor", "", "Editor command to use with --edit (e.g. 'code --wait')")
 	return cmd
 }

@@ -14,6 +14,8 @@ func TestNewCommandCreatesConfig(t *testing.T) {
 			home := t.TempDir()
 			t.Setenv("HOME", home)
 			t.Setenv("USERPROFILE", home)
+			t.Setenv("VISUAL", "")
+			t.Setenv("EDITOR", fakeEditor(t, "keep"))
 			var stdout, stderr bytes.Buffer
 			cmd := NewCommand("test")
 			cmd.SetOut(&stdout)
@@ -34,10 +36,7 @@ func TestNewCommandCreatesConfig(t *testing.T) {
 			if !strings.Contains(stdout.String(), path) {
 				t.Fatalf("missing created path in output: %q", stdout.String())
 			}
-			if flag != "" && !strings.Contains(stderr.String(), "not implemented yet") {
-				t.Fatalf("missing editor notice: %q", stderr.String())
-			}
-			if flag == "" && stderr.Len() != 0 {
+			if stderr.Len() != 0 {
 				t.Fatalf("unexpected warning: %q", stderr.String())
 			}
 		})

@@ -1,17 +1,13 @@
 package cli
 
-import (
-	"fmt"
-
-	"github.com/spf13/cobra"
-)
+import "github.com/spf13/cobra"
 
 // NewCommand constructs an independent command tree for one invocation.
 func NewCommand(version string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "rexp",
 		Short:         "Project workspaces for Rex",
-		Long:          "rexp manages named project workspaces for Rex.\n\nCreate configurations with new, check them with validate, and launch layouts with start. Editor integration is not implemented yet.",
+		Long:          "rexp manages named project workspaces for Rex.\n\nCreate configurations with new, update them with edit, check them with validate, and launch layouts with start.",
 		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -23,27 +19,14 @@ func NewCommand(version string) *cobra.Command {
 	}
 	root.SetVersionTemplate("rexp {{.Version}}\n")
 
-	edit := pendingCommand("edit <project>", "Edit a project configuration (not implemented)", cobra.ExactArgs(1))
-	edit.Flags().String("editor", "", "Editor command to open the configuration")
 	root.AddCommand(
 		newProjectCommand(),
 		saveProjectCommand(),
 		deleteProjectCommand(),
-		edit,
+		editProjectCommand(),
 		startProjectCommand(),
 		listProjectsCommand(),
 		validateProjectCommand(),
 	)
 	return root
-}
-
-func pendingCommand(use, short string, args cobra.PositionalArgs) *cobra.Command {
-	return &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  args,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return fmt.Errorf("%s is not implemented yet", cmd.CommandPath())
-		},
-	}
 }

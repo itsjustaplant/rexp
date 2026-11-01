@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.2.0 — Unreleased
+## 0.3.0 — Unreleased
+
+- Add `edit` and editor launching for `new --edit`, with configurable editor selection, terminal input/output, and validation after editing.
+
+## 0.2.0
 
 - Add `save <project>` to capture Rex tabs, nested layouts, pane labels, focus, and directories into a new configuration; full command arguments remain manual.
 - Add nested pane layout configuration and `validate` for checking saved YAML.
@@ -15,7 +19,7 @@
 - Add `delete` with confirmation and an optional `--yes` flag.
 - Add `list` to show saved project names alphabetically without parsing YAML.
 - Explain missing project names with usage and examples.
-- Reserve `new --edit` for future editor integration; currently it creates the file and prints a notice.
+- Reserve `new --edit` for editor integration (implemented in 0.3.0).
 
 ## 0.0.1
 

@@ -4,7 +4,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 0.2.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` is not implemented yet.
+The source version is currently 0.3.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -27,7 +27,7 @@ go run . --version
 go run . new --help
 ```
 
-`go run . --version` prints `rexp 0.2.0`.
+`go run . --version` prints `rexp 0.3.0`.
 
 Build and check:
 
@@ -51,11 +51,45 @@ rexp new my-app
 
 This creates `~/.rexp/projects/my-app.yaml`, recording schema version 1, the current absolute directory as `root`, and a starter tab with a single `layout.pane`. Names must start with an ASCII letter or digit and contain at most 64 ASCII letters, digits, hyphens, or underscores. Windows-reserved names are rejected on all platforms. Existing configurations are never overwritten. New files use owner-only permissions on Unix.
 
-`--edit` (or `-e`) reserves the option to open the new file immediately. Editor launching is deferred: currently the file is created and a notice explains that no editor was opened.
+`--edit` (or `-e`) opens the new file in your selected editor, waits for it to exit, and validates the result. The file remains available if editor launch or validation fails.
 
 ```sh
 rexp new my-app --edit
+rexp new my-app -e --editor "code --wait"
 ```
+
+`--editor` on `new` requires `--edit`.
+
+## Edit a project
+
+```sh
+rexp edit my-app
+rexp edit my-app --editor nvim
+rexp edit my-app --editor "code --wait"
+```
+
+The configuration must already exist. Invalid YAML can still be opened so you can repair it. Rexp waits for the launched editor process, then validates the saved configuration. Editor failures and invalid saves return errors; edits are preserved. Editing makes no Rex connection and does not modify an existing workspace. A reused session keeps its previous layout; changes apply when creating a new session.
+
+Editor selection uses the first available setting in this order:
+
+1. Explicit `--editor` option.
+2. `editor` in `~/.rexp/config.yaml`.
+3. `$VISUAL`.
+4. `$EDITOR`.
+5. `vi` on macOS/Linux, or `notepad.exe` on Windows.
+
+The tool configuration is optional and is not automatically created. For example:
+
+```yaml
+# ~/.rexp/config.yaml
+editor: code --wait
+```
+
+An empty setting falls through to the next choice. A malformed settings file or malformed selected editor command produces an error. An explicit `--editor` bypasses the settings file, allowing you to edit a project while fixing tool preferences separately. Commands that do not open an editor do not read these preferences.
+
+Commands can include arguments. Quote an executable path or argument containing spaces, for example `editor: '"/path/to/My Editor/bin/editor" --wait'`. Single/double quotes and escaped quotes/spaces are supported; backslashes before ordinary characters remain literal for Windows paths. Rexp launches the program directly: shell variables, `~`, aliases, pipes, redirection, and command substitution are not evaluated. Use an absolute path or a program on `PATH`.
+
+For GUI editors, include their wait option, such as `code --wait`; otherwise their launcher may exit before you finish editing. Terminal editors use the current terminal's input and output.
 
 ## Save a running workspace
 
@@ -184,4 +218,4 @@ rexp start four-shells
 rexp start four-shells
 ```
 
-Expect one pane covering the left half and three stacked panes covering the right half, with the left pane focused. The second start prints `Reused` and creates no additional panes. Editing remains planned through `rexp edit my-app`.
+Expect one pane covering the left half and three stacked panes covering the right half, with the left pane focused. The second start prints `Reused` and creates no additional panes. Use `rexp edit my-app` to update the saved configuration.
