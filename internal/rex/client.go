@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"rexp/internal/panerunner"
 	"rexp/internal/workspace"
 )
 
@@ -86,9 +87,13 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 	if result.Reused {
 		return result, client.selectSession(ctx, result, options)
 	}
+	commands, err := launchCommands(project)
+	if err != nil {
+		return Result{}, err
+	}
 
 	first := firstPane(project.Tabs[0].Layout)
-	args := withCommand([]string{"new", pending, "--window", project.Tabs[0].Name, "--cwd", first.Cwd, "--keep-open", "--json"}, first.Command)
+	args := withCommand([]string{"new", pending, "--window", project.Tabs[0].Name, "--cwd", first.Cwd, "--keep-open", "--json"}, commands[first.Pane])
 	var created struct {
 		SessionID string `json:"session_id"`
 		Windows   []struct {
@@ -112,7 +117,7 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 			leaf := firstPane(tab.Layout)
 			// Set the user-provided label in a separate rename call, where --
 			// makes names beginning with a hyphen unambiguously positional.
-			args := withCommand([]string{"window", "new", "-s", result.SessionID, "--cwd", leaf.Cwd, "--keep-open", "--focus=false", "--json"}, leaf.Command)
+			args := withCommand([]string{"window", "new", "-s", result.SessionID, "--cwd", leaf.Cwd, "--keep-open", "--focus=false", "--json"}, commands[leaf.Pane])
 			var window struct {
 				ID     string   `json:"window_id"`
 				Blocks []string `json:"block_ids"`
@@ -132,7 +137,7 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 		if err := client.command(ctx, "block", "rename", "-s", result.SessionID, anchor, firstPane(tab.Layout).Pane); err != nil {
 			return fail(err)
 		}
-		if err := client.build(ctx, result.SessionID, tab.Layout, anchor, blocks); err != nil {
+		if err := client.build(ctx, result.SessionID, tab.Layout, anchor, blocks, commands); err != nil {
 			return fail(err)
 		}
 		if err := client.command(ctx, "focus", "-s", result.SessionID, blocks[tab.Focus]); err != nil {
@@ -148,7 +153,7 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 	return result, client.selectSession(ctx, result, options)
 }
 
-func (client *Client) build(ctx context.Context, session string, node workspace.Layout, anchor string, blocks map[string]string) error {
+func (client *Client) build(ctx context.Context, session string, node workspace.Layout, anchor string, blocks map[string]string, commands map[string][]string) error {
 	if node.Pane != "" {
 		return nil
 	}
@@ -165,7 +170,7 @@ func (client *Client) build(ctx context.Context, session string, node workspace.
 		next := remaining - shares[i-1]
 		ratio := int(math.Round(100 * next / remaining))
 		leaf := firstPane(node.Children[i])
-		args := withCommand([]string{"split", "-s", session, "-b", anchors[i-1], "--split", direction, "--ratio", strconv.Itoa(ratio), "--cwd", leaf.Cwd, "--label", leaf.Pane, "--keep-open", "--focus=false", "--json"}, leaf.Command)
+		args := withCommand([]string{"split", "-s", session, "-b", anchors[i-1], "--split", direction, "--ratio", strconv.Itoa(ratio), "--cwd", leaf.Cwd, "--label", leaf.Pane, "--keep-open", "--focus=false", "--json"}, commands[leaf.Pane])
 		var split struct {
 			Blocks []string `json:"block_ids"`
 		}
@@ -180,11 +185,42 @@ func (client *Client) build(ctx context.Context, session string, node workspace.
 		remaining = next
 	}
 	for i, child := range node.Children {
-		if err := client.build(ctx, session, child, anchors[i], blocks); err != nil {
+		if err := client.build(ctx, session, child, anchors[i], blocks, commands); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func launchCommands(project *workspace.Project) (map[string][]string, error) {
+	commands := map[string][]string{}
+	var walk func(workspace.Layout) error
+	walk = func(node workspace.Layout) error {
+		if node.Pane != "" {
+			command := node.Command
+			if len(node.Commands) > 0 {
+				var err error
+				command, err = panerunner.Invocation(node.Commands)
+				if err != nil {
+					return fmt.Errorf("prepare pane %q: %w", node.Pane, err)
+				}
+			}
+			commands[node.Pane] = command
+			return nil
+		}
+		for _, child := range node.Children {
+			if err := walk(child); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	for _, tab := range project.Tabs {
+		if err := walk(tab.Layout); err != nil {
+			return nil, err
+		}
+	}
+	return commands, nil
 }
 
 func preflight(project *workspace.Project) error {

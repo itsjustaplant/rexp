@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"rexp/internal/panerunner"
 	"rexp/internal/workspace"
 )
 
@@ -145,6 +146,40 @@ func TestStartSelectsConfiguredTabWithoutChangingOrder(t *testing.T) {
 	last := fake.calls[len(fake.calls)-2]
 	if !reflect.DeepEqual(last, []string{"focus", "-s", "session:test", "block:tab2"}) {
 		t.Fatalf("final focus: %v", last)
+	}
+}
+
+func TestStartWrapsSequencesForInitialTabNewTabsAndSplits(t *testing.T) {
+	project := projectFixture(t)
+	leaf := func(name string) workspace.Layout {
+		return workspace.Layout{Pane: name, Cwd: project.Root, Commands: [][]string{{"echo", "first"}, {"echo", "second"}}}
+	}
+	project.Tabs[0].Layout = workspace.Layout{Split: "columns", Children: []workspace.Layout{leaf("editor"), leaf("right")}}
+	project.Tabs = append(project.Tabs, workspace.Tab{Name: "Other", Focus: "other", Layout: leaf("other")})
+	fake := &fakeRex{}
+	if _, err := (&Client{run: fake.run}).Start(context.Background(), project, Options{Background: true}); err != nil {
+		t.Fatal(err)
+	}
+	wrapped := 0
+	for _, call := range fake.calls {
+		if call[0] != "new" && call[0] != "split" && !(call[0] == "window" && call[1] == "new") {
+			continue
+		}
+		for i, arg := range call {
+			if arg == "--" {
+				if len(call[i+1:]) != 3 || call[i+2] != panerunner.Mode {
+					t.Fatalf("not a pane runner: %v", call)
+				}
+				payload, err := panerunner.Decode(call[i+3])
+				if err != nil || len(payload.Commands) != 2 {
+					t.Fatalf("payload: %+v %v", payload, err)
+				}
+				wrapped++
+			}
+		}
+	}
+	if wrapped != 3 {
+		t.Fatalf("wrapped %d panes", wrapped)
 	}
 }
 

@@ -130,12 +130,17 @@ func validateLayout(layout *Layout, path, root string, all, local map[string]boo
 			return "", fmt.Errorf("%s.pane: duplicate pane identifier %q", path, layout.Pane)
 		}
 		all[layout.Pane], local[layout.Pane] = true, true
-		if len(layout.Command) > 0 && strings.TrimSpace(layout.Command[0]) == "" {
-			return "", fmt.Errorf("%s.command[0] must name a program", path)
+		if layout.Command != nil && layout.Commands != nil {
+			return "", fmt.Errorf("%s: command and commands are mutually exclusive", path)
 		}
-		for i, argument := range layout.Command {
-			if strings.ContainsRune(argument, 0) {
-				return "", fmt.Errorf("%s.command[%d] must not contain NUL", path, i)
+		if len(layout.Command) > 0 {
+			if err := workspace.ValidateCommand(layout.Command, path+".command"); err != nil {
+				return "", err
+			}
+		}
+		for i, command := range layout.Commands {
+			if err := workspace.ValidateCommand(command, fmt.Sprintf("%s.commands[%d]", path, i)); err != nil {
+				return "", err
 			}
 		}
 		if strings.ContainsRune(layout.Cwd, 0) {
@@ -155,6 +160,9 @@ func validateLayout(layout *Layout, path, root string, all, local map[string]boo
 	}
 	if layout.Command != nil || layout.Cwd != "" {
 		return "", fmt.Errorf("%s: a split cannot define command or cwd", path)
+	}
+	if layout.Commands != nil {
+		return "", fmt.Errorf("%s: a split cannot define commands", path)
 	}
 	if len(layout.Children) < 2 {
 		return "", fmt.Errorf("%s.children must contain at least two layouts", path)
@@ -212,7 +220,7 @@ func checkYAMLTypes(node *yaml.Node, path string, depth int) error {
 				tag, kind = "!!int", yaml.ScalarNode
 			case "name", "root", "focus", "pane", "cwd", "split":
 				tag, kind = "!!str", yaml.ScalarNode
-			case "tabs", "children", "command", "sizes":
+			case "tabs", "children", "command", "commands", "sizes":
 				kind = yaml.SequenceNode
 			case "layout":
 				kind = yaml.MappingNode
@@ -231,12 +239,30 @@ func checkYAMLTypes(node *yaml.Node, path string, depth int) error {
 					}
 				}
 			}
+			if key.Value == "commands" {
+				for j, command := range value.Content {
+					if command.Kind != yaml.SequenceNode {
+						return fmt.Errorf("%s[%d] must be an array of strings", field, j)
+					}
+					for k, arg := range command.Content {
+						if arg.Kind != yaml.ScalarNode || arg.Tag != "!!str" {
+							return fmt.Errorf("%s[%d][%d]: invalid value type", field, j, k)
+						}
+					}
+				}
+			}
 			if err := checkYAMLTypes(value, field, depth+1); err != nil {
 				return err
 			}
 		}
 		if fields["pane"] && fields["split"] {
 			return fmt.Errorf("%s must define exactly one of pane or split", path)
+		}
+		if fields["command"] && fields["commands"] {
+			return fmt.Errorf("%s: command and commands are mutually exclusive", path)
+		}
+		if fields["split"] && fields["commands"] {
+			return fmt.Errorf("%s: a split cannot define commands", path)
 		}
 		if fields["split"] && (fields["cwd"] || fields["command"]) {
 			return fmt.Errorf("%s: a split cannot define command or cwd", path)

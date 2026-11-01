@@ -176,9 +176,26 @@ tabs:
 
 `columns` arranges children left to right and divides width; `rows` arranges them top to bottom and divides height. `sizes` contains positive integer percentages summing to 100, one per child. Omit `sizes` for equal shares. Groups may nest, with at least two children per split. Each pane fills its parent's other dimension. Rex's CLI accepts integer split percentages, so some proportions are approximate; terminal cells and minimum pane sizes can also affect the result. Layouts requiring ratios outside Rex's 1–99 range are rejected before creation.
 
-Each layout node defines either `pane` or `split`. Split nodes accept only `split`, `sizes`, and `children`; panes accept only `pane`, `command`, and `cwd`. Pane identifiers follow project-name rules and must be unique across the project. Tab names must be nonempty and unique. `focus` must name a pane within its tab; omit it to focus the first pane. `selected: true` on a tab chooses the initial tab; at most one tab may be selected, and omitting it defaults to the first tab. Reusing an existing session preserves its current layout and focus.
+Each layout node defines either `pane` or `split`. Split nodes accept only `split`, `sizes`, and `children`; panes accept only `pane`, `command`, `commands`, and `cwd`. Pane identifiers follow project-name rules and must be unique across the project. Tab names must be nonempty and unique. `focus` must name a pane within its tab; omit it to focus the first pane. `selected: true` on a tab chooses the initial tab; at most one tab may be selected, and omitting it defaults to the first tab. Reusing an existing session preserves its current layout and focus.
 
 Pane `cwd` defaults to `root`, and relative values resolve against `root`. Root must be absolute; use native paths for your OS. `command` is an array of strings; omitted or empty opens an interactive shell. Shell syntax needs an explicit shell, such as `[sh, -c, "npm run build && npm test"]`.
+
+## Multiple commands in one pane
+
+Use `commands` for an ordered sequence of argument arrays; `command` remains the single-program form. The two fields are mutually exclusive, including empty lists.
+
+```yaml
+pane: server
+commands:
+  - [npm, run, build]
+  - [npm, run, dev]
+```
+
+Every command must contain a nonempty program name and string arguments. Commands run sequentially in the pane's directory, stopping on the first failure. A long-running command holds up later commands until it exits. A completed sequence exits with status 0; a failing command's nonzero status is preserved. Output stays visible through Rex's keep-open behavior. No shell is started after a finite sequence. An omitted/empty command list opens a shell normally.
+
+Each entry is a separate process. Shell-local `cd`, `export`, and environment activation do not carry into subsequent entries. Use an explicit shell or a script if you need one shared shell context. Arguments are never implicitly interpreted as shell code.
+
+Sequences use a private runner in the same built rexp executable, launched inside the terminal. Use a built/installed binary that remains available at its absolute path on the local Rex host; avoid `go run . start` for sequence workspaces because its temporary executable can be removed. The runner does not initialize `.rexp` or emit rexp lifecycle statuses in application panes. Ctrl+C stops the sequence before later commands. Saving a live session still cannot reconstruct full command arguments/sequences.
 
 ## Validate a configuration
 

@@ -29,12 +29,13 @@ func (project *Project) InitialTab() Tab {
 
 // Layout is either a terminal pane or a group of rows/columns.
 type Layout struct {
-	Pane     string   `yaml:"pane,omitempty"`
-	Command  []string `yaml:"command,omitempty"`
-	Cwd      string   `yaml:"cwd,omitempty"`
-	Split    string   `yaml:"split,omitempty"`
-	Sizes    []int    `yaml:"sizes,omitempty"`
-	Children []Layout `yaml:"children,omitempty"`
+	Pane     string     `yaml:"pane,omitempty"`
+	Command  []string   `yaml:"command,omitempty"`
+	Commands [][]string `yaml:"commands,omitempty"`
+	Cwd      string     `yaml:"cwd,omitempty"`
+	Split    string     `yaml:"split,omitempty"`
+	Sizes    []int      `yaml:"sizes,omitempty"`
+	Children []Layout   `yaml:"children,omitempty"`
 }
 
 // Shares returns each split child's fraction of its parent's width or height.
