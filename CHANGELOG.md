@@ -1,13 +1,14 @@
 # Changelog
 
-## 0.1.0 — Unreleased
+## 0.2.0 — Unreleased
 
 - Add `save <project>` to capture Rex tabs, nested layouts, pane labels, focus, and directories into a new configuration; full command arguments remain manual.
-
 - Add nested pane layout configuration and `validate` for checking saved YAML.
 - Add `start` to launch Rex tabs, panes, and commands, with existing-session reuse.
 - Add `start --background` and `--client` for controlling Rex app selection.
 - Preserve partial workspaces after startup failures and prevent automatic reruns.
+
+## 0.1.0
 
 - Initialize the user's `.rexp/projects` directory on startup.
 - Add `new` to create starter YAML configurations with name validation and overwrite protection.
