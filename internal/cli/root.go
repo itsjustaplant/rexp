@@ -27,6 +27,7 @@ func NewCommand(version string) *cobra.Command {
 	edit.Flags().String("editor", "", "Editor command to open the configuration")
 	root.AddCommand(
 		newProjectCommand(),
+		saveProjectCommand(),
 		deleteProjectCommand(),
 		edit,
 		startProjectCommand(),

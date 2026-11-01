@@ -6,27 +6,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
+
+	"go.yaml.in/yaml/v3"
+
+	"rexp/internal/workspace"
 )
 
-var projectNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
-
 // ValidateProjectName checks that a name is portable and safe as a filename.
-func ValidateProjectName(name string) error {
-	if !projectNamePattern.MatchString(name) {
-		return fmt.Errorf("project name must be 1–64 ASCII letters, digits, hyphens, or underscores, starting with a letter or digit")
-	}
-	upper := strings.ToUpper(name)
-	reserved := upper == "CON" || upper == "PRN" || upper == "AUX" || upper == "NUL"
-	if len(upper) == 4 && (strings.HasPrefix(upper, "COM") || strings.HasPrefix(upper, "LPT")) && upper[3] >= '1' && upper[3] <= '9' {
-		reserved = true
-	}
-	if reserved {
-		return fmt.Errorf("project name %q is reserved on Windows; choose another name", name)
-	}
-	return nil
-}
+func ValidateProjectName(name string) error { return workspace.ValidateName(name) }
 
 // CreateProject creates a starter YAML configuration and never overwrites a file.
 func CreateProject(name, root string) (string, error) {
@@ -43,14 +30,6 @@ func CreateProject(name, root string) (string, error) {
 	if !info.IsDir() {
 		return "", fmt.Errorf("project root %q is not a directory", root)
 	}
-	if err := Initialize(); err != nil {
-		return "", err
-	}
-	projects, err := ProjectsDir()
-	if err != nil {
-		return "", err
-	}
-	path := filepath.Join(projects, name+".yaml")
 	// JSON strings are valid YAML quoted scalars, including Windows paths.
 	quotedName, _ := json.Marshal(name)
 	quotedRoot, err := json.Marshal(root)
@@ -68,6 +47,38 @@ tabs:
       pane: shell
       command: []
 `, quotedName, quotedRoot)
+	return createProjectFile(name, []byte(content))
+}
+
+// SaveProject validates and serializes an exported workspace. Existing files,
+// including symbolic links, are never overwritten.
+func SaveProject(project *Project) (string, error) {
+	if project == nil {
+		return "", errors.New("cannot save an empty project")
+	}
+	content, err := yaml.Marshal(project)
+	if err != nil {
+		return "", fmt.Errorf("encode project configuration: %w", err)
+	}
+	if _, err := DecodeProject(content); err != nil {
+		return "", fmt.Errorf("validate saved configuration: %w", err)
+	}
+	header := "# Saved Rex workspace.\n# Empty or omitted commands open shells. rexp save cannot reconstruct full command arguments.\n# Add pane commands manually to recreate your programs.\n"
+	return createProjectFile(project.Name, append([]byte(header), content...))
+}
+
+func createProjectFile(name string, content []byte) (string, error) {
+	if err := ValidateProjectName(name); err != nil {
+		return "", err
+	}
+	if err := Initialize(); err != nil {
+		return "", err
+	}
+	projects, err := ProjectsDir()
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(projects, name+".yaml")
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if errors.Is(err, os.ErrExist) {
 		return "", fmt.Errorf("project %q already exists at %s; existing configuration was preserved", name, path)
@@ -75,7 +86,7 @@ tabs:
 	if err != nil {
 		return "", fmt.Errorf("create project configuration: %w", err)
 	}
-	_, writeErr := file.WriteString(content)
+	_, writeErr := file.Write(content)
 	closeErr := file.Close()
 	if err := errors.Join(writeErr, closeErr); err != nil {
 		removeErr := os.Remove(path)

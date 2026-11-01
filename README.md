@@ -4,7 +4,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 0.1.0. `new` creates starter project configurations, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` is not implemented yet.
+The source version is currently 0.1.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` is not implemented yet.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -56,6 +56,38 @@ This creates `~/.rexp/projects/my-app.yaml`, recording schema version 1, the cur
 ```sh
 rexp new my-app --edit
 ```
+
+## Save a running workspace
+
+Run inside the Rex session you want to capture:
+
+```sh
+rexp save my-app
+```
+
+This creates `~/.rexp/projects/my-app.yaml` from the session identified by `REX_SESSION`, which is the session containing your terminal, even if the app is displaying another session. To choose explicitly, including when running outside Rex:
+
+```sh
+rexp save my-app --session <rex-session-id-or-label>
+```
+
+The current directory becomes the configuration's `root`. Each pane gets its observed absolute directory: foreground process first, then the nearest readable ancestor, then the terminal's child process. If no process directory is available, save uses the last reported terminal directory and prints a notice. If no absolute directory can be obtained, saving fails rather than substituting an unrelated path.
+
+Save preserves tab order, tab labels, nested horizontal/vertical splits, and each tab's focused pane. Split fractions are rounded to integer percentages summing to 100; very narrow splits that would round to 0 or 100 are rejected. Invalid or duplicate pane labels are given valid unique identifiers, and blank/duplicate tab names are normalized with notices. The first tab remains the initial tab when starting a saved project; save reports when the source's active tab differs.
+
+**Rex does not expose complete process arguments.** Saved panes open interactive shells; add `command` arrays manually before starting if you want to launch programs. Saving does not capture terminal scrollback, shell history, environment changes, editor buffers, or running process state. It does not replay commands inferred from a title or process name.
+
+Only terminal panes in one tiled layer per tab are supported. Floating/multiple layers, other block types, and panes on different hosts are rejected. Paths are native to the machine running rexp; remote workspace restoration is outside the current scope. The session is inspected again before writing, and changes to its layout, labels, or focus cause a retry error. Directory observations are collected sequentially, not as an atomic process snapshot.
+
+Existing files, directories, and symbolic links at the destination are never overwritten. Use a new project name to save another snapshot. Saving only reads Rex state and writes the new configuration; it does not rename, close, or otherwise modify the source session.
+
+```sh
+rexp save saved-workspace
+rexp validate saved-workspace
+rexp start saved-workspace
+```
+
+Starting creates a session named `rexp:saved-workspace`, or reuses one already carrying that label. Use a fresh name when testing restoration so reuse does not hide changes.
 
 ## Layout configuration
 
