@@ -40,6 +40,30 @@ make test
 
 The module path is temporarily `rexp`. Set its final repository URL before distributing it through `go install`.
 
+## Terminal program status
+
+Rexp reports its own lifecycle using [Mitchell Hashimoto's Program Status Protocol (OSC 7501)](https://www.superlogical.com/rex/docs/build/program-status):
+
+| State | When rexp reports it |
+| --- | --- |
+| `working` | Executing a command or validating an edited file. |
+| `blocked`, `kind=permission` | Waiting for deletion confirmation. |
+| `blocked`, `kind=question` | Waiting for the external editor to exit. |
+| `done` | A command completed successfully. This is the protocol's success state. |
+| `error` | Argument parsing, initialization, or command execution failed. |
+| `idle` | Deletion was declined or the command was interrupted. |
+
+Reports use `app=rexp` and the named record `id=rexp` in the invoking terminal. This keeps them separate from reports made by editors and other programs. `start` completing means the workspace setup finished; it does not establish the health of programs launched in other panes. Save notices, such as unavailable process arguments, remain notices rather than errors after a successful save.
+
+Status sequences are written only when stderr is a terminal. Stdout remains ordinary command output, and redirecting stderr to a file or pipe suppresses the sequences. Successful help and version invocations emit no status. `TERM=dumb` and `REXP_NO_STATUS=1` also disable reporting:
+
+```sh
+REXP_NO_STATUS=1 rexp list
+rexp list 2>errors.log
+```
+
+Rexp does not query terminal input for protocol support or ring a bell. Terminals that support OSC 7501 decide how to display status and whether to notify or play sounds; other terminals can ignore the reports. No heartbeat or artificial delay is used. Short commands may finish too quickly to show a working indicator; deletion prompts and editor sessions provide longer-lived blocked states. Ctrl+C returns exit status 130 and leaves a cancelled deletion's configuration intact.
+
 ## Create a project
 
 Create a named configuration from the project's directory:

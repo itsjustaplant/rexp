@@ -8,6 +8,7 @@ import (
 
 	"rexp/internal/config"
 	"rexp/internal/editor"
+	"rexp/internal/programstatus"
 )
 
 func editProjectCommand() *cobra.Command {
@@ -39,9 +40,11 @@ func editProject(cmd *cobra.Command, name, override string) error {
 	if err != nil {
 		return err
 	}
+	programstatus.Editing(cmd.Context(), "Waiting for editor: "+name)
 	if err := editor.Open(cmd.Context(), command, path, cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr()); err != nil {
 		return fmt.Errorf("%w; configuration remains at %s", err, path)
 	}
+	programstatus.Working(cmd.Context(), "Validating edited project "+name)
 	if _, err := config.LoadProject(name); err != nil {
 		return fmt.Errorf("editor closed, but configuration validation failed: %w; your edits were not reverted", err)
 	}

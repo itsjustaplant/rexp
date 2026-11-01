@@ -1,6 +1,9 @@
 package cli
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+	"rexp/internal/programstatus"
+)
 
 // NewCommand constructs an independent command tree for one invocation.
 func NewCommand(version string) *cobra.Command {
@@ -12,6 +15,15 @@ func NewCommand(version string) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.NoArgs,
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			if err := cmd.Context().Err(); err != nil {
+				return err
+			}
+			if cmd.Parent() != nil && cmd.RunE != nil {
+				programstatus.Working(cmd.Context(), "Running "+cmd.CommandPath())
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},

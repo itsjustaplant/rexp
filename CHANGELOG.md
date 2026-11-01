@@ -2,6 +2,8 @@
 
 ## 0.3.0 — Unreleased
 
+- Report command lifecycle through OSC 7501: working, blocked for approval/editing, done, error, and idle on cancellation; suppress reports for redirected stderr and help/version.
+
 - Add `edit` and editor launching for `new --edit`, with configurable editor selection, terminal input/output, and validation after editing.
 
 ## 0.2.0
