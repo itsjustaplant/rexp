@@ -132,6 +132,22 @@ func TestStartReusesSession(t *testing.T) {
 	}
 }
 
+func TestStartSelectsConfiguredTabWithoutChangingOrder(t *testing.T) {
+	project := projectFixture(t)
+	project.Tabs = append(project.Tabs, workspace.Tab{Name: "Server", Selected: true, Focus: "server", Layout: workspace.Layout{Pane: "server", Cwd: project.Root}})
+	fake := &fakeRex{}
+	if _, err := (&Client{run: fake.run}).Start(context.Background(), project, Options{Background: true}); err != nil {
+		t.Fatal(err)
+	}
+	if argument(fake.calls[1], "--window") != "Development" {
+		t.Fatal("tab order changed")
+	}
+	last := fake.calls[len(fake.calls)-2]
+	if !reflect.DeepEqual(last, []string{"focus", "-s", "session:test", "block:tab2"}) {
+		t.Fatalf("final focus: %v", last)
+	}
+}
+
 func TestStartSplitsSiblingRegionsBeforeTheirChildren(t *testing.T) {
 	project := projectFixture(t)
 	leaf := func(name string) workspace.Layout { return workspace.Layout{Pane: name, Cwd: project.Root} }

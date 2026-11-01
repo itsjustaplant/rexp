@@ -139,7 +139,7 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 			return fail(err)
 		}
 	}
-	if err := client.command(ctx, "focus", "-s", result.SessionID, blocks[project.Tabs[0].Focus]); err != nil {
+	if err := client.command(ctx, "focus", "-s", result.SessionID, blocks[project.InitialTab().Focus]); err != nil {
 		return fail(err)
 	}
 	if err := client.command(ctx, "session", "rename", result.SessionID, label); err != nil {

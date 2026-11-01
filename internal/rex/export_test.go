@@ -62,6 +62,9 @@ func TestExportRoundTripsTabsLayoutNamesAndFocus(t *testing.T) {
 		t.Fatalf("calls: %v", *calls)
 	}
 	tabs := result.Project.Tabs
+	if tabs[0].Selected || !tabs[1].Selected {
+		t.Fatal("active tab was not preserved")
+	}
 	if len(tabs) != 2 || tabs[1].Name != "Development (2)" || tabs[0].Focus != "pane-3" || tabs[1].Focus != "pane-4" {
 		t.Fatalf("tabs: %+v", tabs)
 	}
@@ -78,8 +81,10 @@ func TestExportRoundTripsTabsLayoutNamesAndFocus(t *testing.T) {
 	if _, err := config.SaveProject(result.Project); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := config.LoadProject("demo"); err != nil {
+	if loaded, err := config.LoadProject("demo"); err != nil {
 		t.Fatalf("export is not loadable: %v", err)
+	} else if loaded.InitialTab().Name != tabs[1].Name {
+		t.Fatal("selected tab did not round trip")
 	}
 }
 

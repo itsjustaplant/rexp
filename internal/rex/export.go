@@ -116,14 +116,11 @@ func (builder *exportBuilder) convert(snapshot sessionSnapshot, name, root strin
 		if tabName != window.Label {
 			builder.result.Warnings = append(builder.result.Warnings, fmt.Sprintf("Tab %q was saved as %q to give it a unique nonempty name.", window.Label, tabName))
 		}
-		builder.result.Project.Tabs = append(builder.result.Project.Tabs, workspace.Tab{Name: tabName, Focus: focus, Layout: layout})
+		builder.result.Project.Tabs = append(builder.result.Project.Tabs, workspace.Tab{Name: tabName, Selected: window.ID == snapshot.ActiveWindow, Focus: focus, Layout: layout})
 	}
 	if snapshot.ActiveWindow != "" {
 		if !builder.windows[snapshot.ActiveWindow] {
 			return ExportResult{}, errors.New("Rex's active tab is missing from the snapshot; retry saving after the session settles")
-		}
-		if snapshot.ActiveWindow != snapshot.Windows[0].ID {
-			builder.result.Warnings = append(builder.result.Warnings, "Tab order was preserved; start initially selects the first tab, which differs from the currently active tab.")
 		}
 	}
 	return builder.result, nil

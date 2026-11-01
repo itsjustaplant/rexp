@@ -2,6 +2,8 @@
 
 ## 0.4.0 — Unreleased
 
+- Add initial tab selection with `selected: true`, including active-tab preservation in `save`.
+
 - Report command lifecycle through OSC 7501: working, blocked for approval/editing, done, error, and idle on cancellation; suppress reports for redirected stderr and help/version.
 
 ## 0.3.0

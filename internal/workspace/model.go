@@ -10,9 +10,21 @@ type Project struct {
 }
 
 type Tab struct {
-	Name   string `yaml:"name"`
-	Focus  string `yaml:"focus,omitempty"`
-	Layout Layout `yaml:"layout"`
+	Name     string `yaml:"name"`
+	Selected bool   `yaml:"selected,omitempty"`
+	Focus    string `yaml:"focus,omitempty"`
+	Layout   Layout `yaml:"layout"`
+}
+
+// InitialTab returns the selected tab, falling back to the first. Call only on
+// a validated project containing at least one tab.
+func (project *Project) InitialTab() Tab {
+	for _, tab := range project.Tabs {
+		if tab.Selected {
+			return tab
+		}
+	}
+	return project.Tabs[0]
 }
 
 // Layout is either a terminal pane or a group of rows/columns.

@@ -81,9 +81,16 @@ func DecodeProject(data []byte) (*Project, error) {
 	}
 	panes := map[string]bool{}
 	tabs := map[string]bool{}
+	selected := false
 	for i := range project.Tabs {
 		tab := &project.Tabs[i]
 		path := fmt.Sprintf("tabs[%d]", i)
+		if tab.Selected {
+			if selected {
+				return nil, fmt.Errorf("%s.selected: at most one tab may be selected", path)
+			}
+			selected = true
+		}
 		if strings.TrimSpace(tab.Name) == "" {
 			return nil, fmt.Errorf("%s.name must not be empty", path)
 		}
@@ -199,6 +206,8 @@ func checkYAMLTypes(node *yaml.Node, path string, depth int) error {
 			}
 			tag, kind := "", yaml.Kind(0)
 			switch key.Value {
+			case "selected":
+				tag, kind = "!!bool", yaml.ScalarNode
 			case "schema_version":
 				tag, kind = "!!int", yaml.ScalarNode
 			case "name", "root", "focus", "pane", "cwd", "split":
