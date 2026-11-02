@@ -4,7 +4,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 0.6.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits.
+The source version is currently 0.7.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits. `stop` closes a project session while keeping its configuration.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -27,7 +27,7 @@ go run . --version
 go run . new --help
 ```
 
-`go run . --version` prints `rexp 0.6.0`.
+`go run . --version` prints `rexp 0.7.0`.
 
 Build and check:
 
@@ -98,7 +98,7 @@ rexp start .
 
 `new --local` creates `.rexp.yaml` with `root: "."`. It supports `--edit` and never overwrites an existing file. Commit this configuration to your project's repository if you want to share it. Local configurations are not registered in `~/.rexp/projects`, listed by `list`, or removed by `delete`.
 
-`start`, `validate`, and `edit` also accept `--file <path>`, including from another directory:
+`start`, `stop`, `validate`, and `edit` also accept `--file <path>`, including from another directory:
 
 ```sh
 rexp start --file ~/projects/my-app/.rexp.yaml
@@ -109,6 +109,21 @@ rexp edit --file ~/projects/my-app/.rexp.yaml --editor nvim
 Choose a name, `.`, or `--file`; a name plus `--file` is an error. A bare name always selects the global named configuration. There is no automatic file discovery. Explicit file configs resolve relative or omitted `root` beside the configuration file, then resolve pane `cwd` against that root. Global named configs still require an absolute root. Files must be regular files; symbolic link files are rejected. Local sessions include a short hash of the canonical configuration path in their label, keeping separate checkouts and global projects independent. Moving a configuration file gives it a new session identity.
 
 Reading or editing a configuration does not execute its commands or hooks. Starting a file explicitly executes its configured programs.
+
+## Stop a workspace
+
+```sh
+rexp stop my-app
+rexp stop .
+rexp stop --file ~/projects/my-app/.rexp.yaml
+rexp stop my-app --yes
+```
+
+Stop finds the same global or local session identity used by start, asks for confirmation, and closes the entire session through Rex. This includes all tabs, panes, running programs, and panes you added manually. Your project directory and YAML configuration are kept. `--yes` (or `-y`) skips confirmation. Closing the session containing the invoking terminal requires `--yes`; run stop from another session to use the normal prompt and see its final result.
+
+A missing session prints `Project "my-app" is not running.` and succeeds without prompting. Incomplete `:starting` sessions can also be stopped. Duplicate matches, case-conflicting labels, and a replacement session appearing during confirmation produce an error instead of guessing. The selected session ID and label are rechecked before closure. Renamed sessions that no longer carry their workspace label are not selected. Stop requires a readable, valid config but does not require its root/pane directories to still exist.
+
+An existing `after_close` observer handles the destruction event, just as when closing in Rex. Stop does not execute hooks itself, create an observer for reused sessions, or wait for background cleanup to finish. The documented close-hook limitations still apply. `before_close` remains unsupported. A failed Rex kill is reported and is not retried automatically; inspect the session before retrying.
 
 ## Lifecycle hooks
 
@@ -330,7 +345,7 @@ Rexp creates tabs and nested splits using returned Rex IDs, passes commands as a
 
 Selecting a session in the app requires Rex Remote Control. With multiple clients, use `--client` (or Rex's `REX_CLIENT` environment). `--background` skips app selection; it cannot be combined with `--client`. A selection error can occur after successful setup: retrying reuses the completed session.
 
-During creation, the session is named `rexp:<project>:starting`. If setup fails, it remains under that name with existing panes running. Further starts stop with an error rather than rerunning commands. Inspect the session in Rex; close it manually before retrying, or finish it yourself and rename it to `rexp:<project>`. Rexp does not automatically delete sessions or undo commands after a failure.
+During creation, the session is named `rexp:<project>:starting`. If setup fails, it remains under that name with existing panes running. Further starts stop with an error rather than rerunning commands. Inspect the session in Rex; use `rexp stop <project>` (or the matching local/file target) before retrying, or finish it yourself and rename it to `rexp:<project>`. Rexp does not automatically delete sessions or undo commands after a failure.
 
 For a layout-only smoke test, use [the four-shell example](examples/four-shells.yaml), set `root` to an existing absolute directory, and save it as `~/.rexp/projects/four-shells.yaml`:
 
