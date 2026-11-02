@@ -4,7 +4,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 0.8.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits. `stop` closes a project session while keeping its configuration. `search` finds saved names, `list --long`/`--json` expose configuration metadata, and `completion` generates shell integration.
+The source version is currently 0.9.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits. `stop` closes a project session while keeping its configuration. `status` reports its workspace session state. `search` finds saved names, `list --long`/`--json` expose configuration metadata, and `completion` generates shell integration.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -27,7 +27,7 @@ go run . --version
 go run . new --help
 ```
 
-`go run . --version` prints `rexp 0.8.0`.
+`go run . --version` prints `rexp 0.9.0`.
 
 Build and check:
 
@@ -42,7 +42,7 @@ The module path is temporarily `rexp`. Set its final repository URL before distr
 
 ## Shell completion
 
-Rexp uses [Cobra's shell completion](https://cobra.dev/docs/how-to-guides/shell-completion/) to generate scripts for Bash, Zsh, Fish, and PowerShell. Scripts complete subcommands and flags; saved project names are suggested for start, stop, edit, validate, delete, and search. Start/stop/edit/validate also suggest `.` when a regular `.rexp.yaml` exists in the current directory. `--file` completes YAML filenames and directories. Project names use case-sensitive prefix matching during completion, according to what you type; search uses case-insensitive substring matching.
+Rexp uses [Cobra's shell completion](https://cobra.dev/docs/how-to-guides/shell-completion/) to generate scripts for Bash, Zsh, Fish, and PowerShell. Scripts complete subcommands and flags; saved project names are suggested for start, stop, status, edit, validate, delete, and search. Start/stop/status/edit/validate also suggest `.` when a regular `.rexp.yaml` exists in the current directory. `--file` completes YAML filenames and directories. Project names use case-sensitive prefix matching during completion, according to what you type; search uses case-insensitive substring matching.
 
 Make sure the built binary is on PATH. From this repository, you can use `export PATH="$PWD/bin:$PATH"` in your current shell after `make build`.
 
@@ -150,7 +150,7 @@ rexp start .
 
 `new --local` creates `.rexp.yaml` with `root: "."`. It supports `--edit` and never overwrites an existing file. Commit this configuration to your project's repository if you want to share it. Local configurations are not registered in `~/.rexp/projects`, listed by `list`, or removed by `delete`.
 
-`start`, `stop`, `validate`, and `edit` also accept `--file <path>`, including from another directory:
+`start`, `stop`, `status`, `validate`, and `edit` also accept `--file <path>`, including from another directory:
 
 ```sh
 rexp start --file ~/projects/my-app/.rexp.yaml
@@ -176,6 +176,30 @@ Stop finds the same global or local session identity used by start, asks for con
 A missing session prints `Project "my-app" is not running.` and succeeds without prompting. Incomplete `:starting` sessions can also be stopped. Duplicate matches, case-conflicting labels, and a replacement session appearing during confirmation produce an error instead of guessing. The selected session ID and label are rechecked before closure. Renamed sessions that no longer carry their workspace label are not selected. Stop requires a readable, valid config but does not require its root/pane directories to still exist.
 
 An existing `after_close` observer handles the destruction event, just as when closing in Rex. Stop does not execute hooks itself, create an observer for reused sessions, or wait for background cleanup to finish. The documented close-hook limitations still apply. `before_close` remains unsupported. A failed Rex kill is reported and is not retried automatically; inspect the session before retrying.
+
+## Workspace status
+
+```sh
+rexp status my-app
+rexp status .
+rexp status --file ~/projects/my-app/.rexp.yaml
+rexp status my-app --json
+```
+
+Status loads the selected config and reads a single Rex session-list snapshot. It uses the same global/local identity as start and stop; a config with relative paths resolves beside the file. Pane/root directories do not need to exist. A valid config is required. It does not select, attach to, create, close, or modify sessions, inspect program health, or execute hooks/commands.
+
+| JSON status | Meaning |
+| --- | --- |
+| `running` | Exactly one session has the expected workspace label. |
+| `missing` | No matching session exists. Human output says the project is not running. |
+| `incomplete` | Exactly one session has the expected `:starting` label. |
+| `ambiguous` | Multiple sessions match, including a ready/incomplete pair, or a label differs only in case. Matching IDs/labels are shown without choosing one. |
+
+A running session can contain exited programs or manual layout changes. Status does not compare the live layout to the config or establish whether services are ready. Renamed sessions that no longer match the workspace label are not tracked. Results describe the moment of the query and may change afterward.
+
+All four observed states return exit status 0. Invalid arguments/configs, unreachable Rex, malformed responses, and cancellation return errors instead of being reported as missing. Use `--json` and inspect `status` in scripts. The JSON object contains `project`, `expected_label`, `status`, and `sessions` (an array of `session_id`/`label` objects, empty for missing); `reason` is included for ambiguity. It does not include commands or environment values. A missing named configuration is an error, distinct from a valid configuration with a missing session.
+
+For an incomplete workspace, inspect it and use the matching `rexp stop` target before starting again. For ambiguous matches, inspect and rename duplicates/case conflicts in Rex. Status performs no recovery automatically.
 
 ## Lifecycle hooks
 

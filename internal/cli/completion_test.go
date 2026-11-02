@@ -58,7 +58,7 @@ func TestCompletionProbesUseNamesOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", t.TempDir()) // Completion must not call Rex or an editor.
-	for _, command := range []string{"start", "stop", "edit", "validate", "delete", "search"} {
+	for _, command := range []string{"start", "stop", "status", "edit", "validate", "delete", "search"} {
 		out, err := executeCompletion(t, "__complete", command, "al")
 		if err != nil || !strings.Contains(out, "alpha\n") || !strings.Contains(out, "alpine\n") || strings.Contains(out, "beta") || strings.Contains(out, "invalid name") {
 			t.Fatalf("%s: %q %v", command, out, err)

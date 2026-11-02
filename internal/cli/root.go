@@ -38,6 +38,7 @@ func NewCommand(version string) *cobra.Command {
 		editProjectCommand(),
 		startProjectCommand(),
 		stopProjectCommand(),
+		statusProjectCommand(),
 		listProjectsCommand(),
 		searchProjectsCommand(),
 		completionCommand(),
