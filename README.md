@@ -1,3 +1,5 @@
+<img src="assets/rexp.png" alt="rexp dinosaur logo" width="160" height="160">
+
 # rexp
 
 Named project workspaces for [Rex](https://www.superlogical.com/rex).

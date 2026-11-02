@@ -35,6 +35,7 @@ archives:
       - INSTALLATION.MD
       - CHANGELOG.md
       - examples/*.yaml
+      - assets/rexp.png
 
 checksum:
   name_template: checksums.txt
