@@ -1,26 +1,19 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
-
-	"rexp/internal/config"
 )
 
 func validateProjectCommand() *cobra.Command {
-	return &cobra.Command{
+	var target projectTarget
+	cmd := &cobra.Command{
 		Use:   "validate <project>",
 		Short: "Validate a saved project configuration",
-		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errors.New("missing project name\nUsage: rexp validate <project>\nExample: rexp validate my-app")
-			}
-			return cobra.ExactArgs(1)(cmd, args)
-		},
+		Args:  target.args,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			project, err := config.LoadProject(args[0])
+			project, err := target.load(cmd, args)
 			if err != nil {
 				return err
 			}
@@ -28,4 +21,6 @@ func validateProjectCommand() *cobra.Command {
 			return err
 		},
 	}
+	target.bind(cmd)
+	return cmd
 }

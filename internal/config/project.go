@@ -30,12 +30,13 @@ func CreateProject(name, root string) (string, error) {
 	if !info.IsDir() {
 		return "", fmt.Errorf("project root %q is not a directory", root)
 	}
+	return createProjectFile(name, starterProject(name, root))
+}
+
+func starterProject(name, root string) []byte {
 	// JSON strings are valid YAML quoted scalars, including Windows paths.
 	quotedName, _ := json.Marshal(name)
-	quotedRoot, err := json.Marshal(root)
-	if err != nil {
-		return "", fmt.Errorf("encode project root: %w", err)
-	}
+	quotedRoot, _ := json.Marshal(root)
 	content := fmt.Sprintf(`# rexp project configuration
 # Pane directories will be relative to root. An empty command opens a shell.
 schema_version: 1
@@ -47,7 +48,7 @@ tabs:
       pane: shell
       command: []
 `, quotedName, quotedRoot)
-	return createProjectFile(name, []byte(content))
+	return []byte(content)
 }
 
 // SaveProject validates and serializes an exported workspace. Existing files,
@@ -79,6 +80,10 @@ func createProjectFile(name string, content []byte) (string, error) {
 		return "", err
 	}
 	path := filepath.Join(projects, name+".yaml")
+	return writeProjectFile(name, path, content)
+}
+
+func writeProjectFile(name, path string, content []byte) (string, error) {
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if errors.Is(err, os.ErrExist) {
 		return "", fmt.Errorf("project %q already exists at %s; existing configuration was preserved", name, path)

@@ -42,6 +42,10 @@ func LoadProject(name string) (*Project, error) {
 // DecodeProject validates YAML and resolves pane directories and default focus.
 // Root and cwd paths are not required to exist until the workspace is launched.
 func DecodeProject(data []byte) (*Project, error) {
+	return decodeProject(data, "")
+}
+
+func decodeProject(data []byte, directory string) (*Project, error) {
 	var document yaml.Node
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	if err := decoder.Decode(&document); err != nil {
@@ -69,6 +73,9 @@ func DecodeProject(data []byte) (*Project, error) {
 	if err := ValidateProjectName(project.Name); err != nil {
 		return nil, fmt.Errorf("name: %w", err)
 	}
+	if directory != "" && !filepath.IsAbs(project.Root) {
+		project.Root = filepath.Join(directory, project.Root)
+	}
 	if !filepath.IsAbs(project.Root) {
 		return nil, errors.New("root must be an absolute directory path")
 	}
@@ -78,6 +85,16 @@ func DecodeProject(data []byte) (*Project, error) {
 	project.Root = filepath.Clean(project.Root)
 	if err := workspace.ValidateEnvironment(project.Env, "env"); err != nil {
 		return nil, err
+	}
+	if len(project.Hooks.BeforeClose) > 0 {
+		return nil, errors.New("hooks.before_close is not implemented: Rex exposes only an after-close event")
+	}
+	for phase, commands := range map[string][][]string{"before_start": project.Hooks.BeforeStart, "after_start": project.Hooks.AfterStart, "after_close": project.Hooks.AfterClose} {
+		for i, command := range commands {
+			if err := workspace.ValidateCommand(command, fmt.Sprintf("hooks.%s[%d]", phase, i)); err != nil {
+				return nil, err
+			}
+		}
 	}
 	if len(project.Tabs) == 0 {
 		return nil, errors.New("tabs must contain at least one tab")
@@ -246,9 +263,9 @@ func checkYAMLTypes(node *yaml.Node, path string, depth int) error {
 				tag, kind = "!!int", yaml.ScalarNode
 			case "name", "root", "focus", "pane", "cwd", "split":
 				tag, kind = "!!str", yaml.ScalarNode
-			case "tabs", "children", "command", "commands", "sizes":
+			case "tabs", "children", "command", "commands", "sizes", "before_start", "after_start", "after_close", "before_close":
 				kind = yaml.SequenceNode
-			case "layout":
+			case "layout", "hooks":
 				kind = yaml.MappingNode
 			}
 			if kind != 0 && (value.Kind != kind || (tag != "" && value.Tag != tag)) {
@@ -265,7 +282,7 @@ func checkYAMLTypes(node *yaml.Node, path string, depth int) error {
 					}
 				}
 			}
-			if key.Value == "commands" {
+			if key.Value == "commands" || key.Value == "before_start" || key.Value == "after_start" || key.Value == "after_close" || key.Value == "before_close" {
 				for j, command := range value.Content {
 					if command.Kind != yaml.SequenceNode {
 						return fmt.Errorf("%s[%d] must be an array of strings", field, j)

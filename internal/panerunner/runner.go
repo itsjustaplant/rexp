@@ -12,7 +12,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"rexp/internal/workspace"
 )
@@ -20,6 +22,7 @@ import (
 const Mode = "__run-pane"
 
 type Payload struct {
+	Cwd      string            `json:"cwd,omitempty"`
 	Version  int               `json:"version"`
 	Commands [][]string        `json:"commands"`
 	Env      map[string]string `json:"env,omitempty"`
@@ -27,6 +30,9 @@ type Payload struct {
 }
 
 func (payload Payload) validate() error {
+	if payload.Cwd != "" && (!filepath.IsAbs(payload.Cwd) || strings.ContainsRune(payload.Cwd, 0)) {
+		return errors.New("runner cwd must be an absolute directory")
+	}
 	if payload.Version != 1 {
 		return errors.New("unsupported pane runner payload version")
 	}
@@ -97,6 +103,14 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	if err != nil {
 		return 2, err
 	}
+	return Execute(ctx, payload, stdin, stdout, stderr)
+}
+
+// Execute runs validated commands without changing the caller's working directory.
+func Execute(ctx context.Context, payload Payload, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	if err := payload.validate(); err != nil {
+		return 2, err
+	}
 	environment := workspace.OverlayEnvironment(os.Environ(), payload.Env)
 	commands := payload.Commands
 	if payload.Shell {
@@ -119,6 +133,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		process := exec.CommandContext(ctx, program, command[1:]...)
 		process.Args[0] = command[0]
 		process.Env = environment
+		process.Dir = payload.Cwd
 		process.Stdin, process.Stdout, process.Stderr = stdin, stdout, stderr
 		runErr := lookupErr
 		if runErr == nil {

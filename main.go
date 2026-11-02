@@ -7,12 +7,13 @@ import (
 	"os/signal"
 
 	"rexp/internal/cli"
+	"rexp/internal/hooks"
 	"rexp/internal/panerunner"
 	"rexp/internal/programstatus"
 )
 
 // Set at build time with -ldflags "-X main.version=...".
-var version = "0.5.0"
+var version = "0.6.0"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -23,6 +24,13 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 		}
 		os.Exit(code)
+	}
+	if len(os.Args) > 1 && os.Args[1] == hooks.Mode {
+		if err := hooks.Worker(ctx, os.Args[2:], os.Stdout, os.Stderr); err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+		return
 	}
 	command := cli.NewCommand(version)
 	command.SetContext(ctx)

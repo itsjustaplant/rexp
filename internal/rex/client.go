@@ -4,9 +4,11 @@ package rex
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"os/exec"
@@ -14,14 +16,18 @@ import (
 	"strings"
 	"time"
 
+	"rexp/internal/hooks"
 	"rexp/internal/panerunner"
 	"rexp/internal/workspace"
 )
 
 type Client struct {
-	run func(context.Context, ...string) ([]byte, error)
+	run   func(context.Context, ...string) ([]byte, error)
+	watch func(context.Context, *workspace.Project, string) error
 }
 type Options struct {
+	Stdout     io.Writer
+	Stderr     io.Writer
 	Background bool
 	Client     string
 }
@@ -51,10 +57,15 @@ func execute(ctx context.Context, args ...string) ([]byte, error) {
 // Start expects a validated project with resolved pane directories. Mutating
 // calls are never retried after errors; partial workspaces remain inspectable.
 func (client *Client) Start(ctx context.Context, project *workspace.Project, options Options) (Result, error) {
-	if err := preflight(project); err != nil {
-		return Result{}, err
+	if project == nil {
+		return Result{}, errors.New("project has no tabs")
 	}
-	label := "rexp:" + project.Name
+	if len(project.Hooks.BeforeStart) == 0 {
+		if err := preflight(project); err != nil {
+			return Result{}, err
+		}
+	}
+	label := SessionLabel(project)
 	pending := label + ":starting"
 	var listing struct {
 		Sessions []struct {
@@ -86,6 +97,19 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 	}
 	if result.Reused {
 		return result, client.selectSession(ctx, result, options)
+	}
+	out, stderr := options.Stdout, options.Stderr
+	if out == nil {
+		out = os.Stdout
+	}
+	if stderr == nil {
+		stderr = os.Stderr
+	}
+	if err := hooks.Run(ctx, project, "", "before_start", project.Hooks.BeforeStart, out, stderr); err != nil {
+		return Result{}, err
+	}
+	if err := preflight(project); err != nil {
+		return Result{}, err
 	}
 	commands, err := launchCommands(project)
 	if err != nil {
@@ -147,10 +171,33 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 	if err := client.command(ctx, "focus", "-s", result.SessionID, blocks[project.InitialTab().Focus]); err != nil {
 		return fail(err)
 	}
+	if err := hooks.Run(ctx, project, result.SessionID, "after_start", project.Hooks.AfterStart, out, stderr); err != nil {
+		return fail(err)
+	}
+	if len(project.Hooks.AfterClose) > 0 {
+		watch := client.watch
+		if watch == nil {
+			watch = hooks.Watch
+		}
+		if err := watch(ctx, project, result.SessionID); err != nil {
+			return fail(fmt.Errorf("arm after_close hook: %w", err))
+		}
+	}
 	if err := client.command(ctx, "session", "rename", result.SessionID, label); err != nil {
 		return fail(err)
 	}
 	return result, client.selectSession(ctx, result, options)
+}
+
+// Different file configs/checkouts with the same project name must not reuse
+// each other's sessions or a global named configuration's session.
+func SessionLabel(project *workspace.Project) string {
+	label := "rexp:" + project.Name
+	if project.SourcePath != "" {
+		hash := sha256.Sum256([]byte(project.SourcePath))
+		label += fmt.Sprintf(":%x", hash[:6])
+	}
+	return label
 }
 
 func (client *Client) build(ctx context.Context, session string, node workspace.Layout, anchor string, blocks map[string]string, commands map[string][]string) error {

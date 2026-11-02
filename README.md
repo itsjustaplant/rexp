@@ -4,7 +4,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 0.5.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits.
+The source version is currently 0.6.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -27,7 +27,7 @@ go run . --version
 go run . new --help
 ```
 
-`go run . --version` prints `rexp 0.5.0`.
+`go run . --version` prints `rexp 0.6.0`.
 
 Build and check:
 
@@ -83,6 +83,58 @@ rexp new my-app -e --editor "code --wait"
 ```
 
 `--editor` on `new` requires `--edit`.
+
+## Repository-local configurations
+
+Keep a shareable configuration beside your code:
+
+```sh
+cd ~/projects/my-app
+rexp new my-app --local
+rexp edit .
+rexp validate .
+rexp start .
+```
+
+`new --local` creates `.rexp.yaml` with `root: "."`. It supports `--edit` and never overwrites an existing file. Commit this configuration to your project's repository if you want to share it. Local configurations are not registered in `~/.rexp/projects`, listed by `list`, or removed by `delete`.
+
+`start`, `validate`, and `edit` also accept `--file <path>`, including from another directory:
+
+```sh
+rexp start --file ~/projects/my-app/.rexp.yaml
+rexp validate --file "./config/workspace file.yaml"
+rexp edit --file ~/projects/my-app/.rexp.yaml --editor nvim
+```
+
+Choose a name, `.`, or `--file`; a name plus `--file` is an error. A bare name always selects the global named configuration. There is no automatic file discovery. Explicit file configs resolve relative or omitted `root` beside the configuration file, then resolve pane `cwd` against that root. Global named configs still require an absolute root. Files must be regular files; symbolic link files are rejected. Local sessions include a short hash of the canonical configuration path in their label, keeping separate checkouts and global projects independent. Moving a configuration file gives it a new session identity.
+
+Reading or editing a configuration does not execute its commands or hooks. Starting a file explicitly executes its configured programs.
+
+## Lifecycle hooks
+
+Project-level hooks are ordered argv arrays, like pane `commands`:
+
+```yaml
+hooks:
+  before_start:
+    - [./scripts/bootstrap]
+  after_start:
+    - [./scripts/workspace-ready]
+  after_close:
+    - [./scripts/cleanup]
+```
+
+- `before_start` runs before creating a new session. It can prepare pane directories before they are checked.
+- `after_start` runs after tabs, panes, and initial focus are configured, before the session is marked ready. It does not wait for services in panes to become healthy.
+- `after_close` runs after the entire session is destroyed, including through Rex's UI or `rex kill`. Closing one pane/tab or merely switching away does not trigger it while the session remains alive.
+
+Hooks execute on the machine running rexp, in the project root, with the invoking environment plus project `env`. Tab/pane overrides do not apply. `REXP_PROJECT` identifies the project; `REXP_SESSION_ID` is empty before creation and contains the actual session ID for later phases. These metadata variables take precedence over configured values. Arguments remain literal; use an explicit shell for pipes, redirection, or expansion. Hook processes have closed stdin. Each command waits for the previous one and failure stops that phase. Shell-local changes do not carry into the next command or pane.
+
+Reusing a session runs no hooks and creates no additional close observer. Startup hook output goes to the invoking terminal. Before-start failure prevents creation; later failure preserves the session with its `:starting` label for inspection. Hooks are not automatically retried. Ctrl+C cancels startup. Existing sessions that were not started with a close observer do not acquire one on reuse.
+
+Rexp uses [Rex's session-destroyed event](https://www.superlogical.com/rex/docs/reference/events) for `after_close`. A detached worker subscribes before startup is marked ready; subscription failure fails startup. Its private snapshot and output log live under `~/.rexp/state/hooks/` (directories 0700, files 0600 on Unix). The snapshot includes the configured project env and close commands; it is removed when the observer ends, while the `.json.log` remains for inspection. Close hooks use the startup snapshot even if you later edit the config. The background hook has a five-minute timeout, and writes output/errors to its log without terminal status notifications.
+
+`before_close` is **not implemented**: Rex provides an event after destruction, rather than a documented interception point. A nonempty `hooks.before_close` is rejected. Close hooks are best effort, not durable jobs: server disconnections, observer termination, crashes, and machine shutdown do not guarantee execution. EOF/disconnect alone never triggers cleanup, and observers are not restarted or reattached automatically. Save cannot infer hooks from a live session.
 
 ## Edit a project
 

@@ -7,7 +7,11 @@ type Project struct {
 	Name          string            `yaml:"name"`
 	Root          string            `yaml:"root"`
 	Env           map[string]string `yaml:"env,omitempty"`
+	Hooks         Hooks             `yaml:"hooks,omitempty"`
 	Tabs          []Tab             `yaml:"tabs"`
+	// SourcePath is set only for explicitly loaded repository/file configs.
+	// It is runtime identity metadata and is never serialized into a project.
+	SourcePath string `yaml:"-"`
 }
 
 type Tab struct {
@@ -53,4 +57,12 @@ func (layout Layout) Shares() []float64 {
 		}
 	}
 	return shares
+}
+
+// Hooks run ordered argv commands at workspace lifecycle boundaries.
+type Hooks struct {
+	BeforeStart [][]string `yaml:"before_start,omitempty"`
+	AfterStart  [][]string `yaml:"after_start,omitempty"`
+	AfterClose  [][]string `yaml:"after_close,omitempty"`
+	BeforeClose [][]string `yaml:"before_close,omitempty"`
 }

@@ -1,31 +1,26 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
-	"rexp/internal/config"
 	"rexp/internal/rex"
 )
 
 func startProjectCommand() *cobra.Command {
 	var options rex.Options
+	var target projectTarget
 	cmd := &cobra.Command{
 		Use:   "start <project>",
 		Short: "Create or select a project's Rex workspace",
-		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errors.New("missing project name\nUsage: rexp start <project>\nExample: rexp start my-app")
-			}
-			return cobra.ExactArgs(1)(cmd, args)
-		},
+		Args:  target.args,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			project, err := config.LoadProject(args[0])
+			project, err := target.load(cmd, args)
 			if err != nil {
 				return err
 			}
+			options.Stdout, options.Stderr = cmd.OutOrStdout(), cmd.ErrOrStderr()
 			result, err := rex.NewClient().Start(cmd.Context(), project, options)
 			if err != nil {
 				return err
@@ -41,5 +36,6 @@ func startProjectCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&options.Background, "background", false, "Create or reuse the session without switching the Rex app")
 	cmd.Flags().StringVar(&options.Client, "client", "", "Rex client to select the session in")
 	cmd.MarkFlagsMutuallyExclusive("background", "client")
+	target.bind(cmd)
 	return cmd
 }

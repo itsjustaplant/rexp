@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -327,5 +329,99 @@ func TestExecuteMissingRex(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	if _, err := execute(context.Background(), "ls", "--json"); err == nil || !strings.Contains(err.Error(), "not found on PATH") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestHooksRunOnlyForNewSessionAndBeforeFinalRename(t *testing.T) {
+	project := projectFixture(t)
+	project.Hooks.AfterClose = [][]string{{"echo", "closed"}}
+	fake := &fakeRex{}
+	armed := 0
+	client := &Client{run: fake.run, watch: func(_ context.Context, p *workspace.Project, session string) error {
+		armed++
+		if session != "session:test" || fake.calls[len(fake.calls)-1][0] != "focus" {
+			t.Fatal("observer armed at wrong point")
+		}
+		return nil
+	}}
+	if _, err := client.Start(context.Background(), project, Options{Background: true}); err != nil {
+		t.Fatal(err)
+	}
+	if armed != 1 {
+		t.Fatalf("armed %d times", armed)
+	}
+	fake.listing = `{"sessions":[{"session_id":"session:test","label":"rexp:demo"}]}`
+	project.Hooks.BeforeStart = [][]string{{"program-that-must-not-run"}}
+	project.Hooks.AfterStart = project.Hooks.BeforeStart
+	if _, err := client.Start(context.Background(), project, Options{Background: true}); err != nil {
+		t.Fatal(err)
+	}
+	if armed != 1 {
+		t.Fatal("reuse armed duplicate observer")
+	}
+}
+
+func TestStartupHookFailureLeavesCorrectState(t *testing.T) {
+	for _, phase := range []string{"before_start", "after_start", "observer"} {
+		t.Run(phase, func(t *testing.T) {
+			project := projectFixture(t)
+			fake := &fakeRex{}
+			client := &Client{run: fake.run, watch: func(context.Context, *workspace.Project, string) error { return errors.New("observer unavailable") }}
+			bad := [][]string{{"rexp-program-that-does-not-exist"}}
+			switch phase {
+			case "before_start":
+				project.Hooks.BeforeStart = bad
+			case "after_start":
+				project.Hooks.AfterStart = bad
+			case "observer":
+				project.Hooks.AfterClose = bad
+			}
+			result, err := client.Start(context.Background(), project, Options{Background: true})
+			if err == nil {
+				t.Fatal("ignored hook failure")
+			}
+			if phase == "before_start" {
+				if len(fake.calls) != 1 || result.SessionID != "" {
+					t.Fatal("created session after before_start failure")
+				}
+			} else {
+				if result.SessionID != "session:test" {
+					t.Fatal("lost partial session ID")
+				}
+				for _, call := range fake.calls {
+					if call[0] == "session" {
+						t.Fatal("marked incomplete startup ready")
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestLocalSessionIdentitySeparatesCheckoutsAndGlobal(t *testing.T) {
+	project := projectFixture(t)
+	global := SessionLabel(project)
+	project.SourcePath = "/checkout/one/.rexp.yaml"
+	one := SessionLabel(project)
+	project.SourcePath = "/checkout/two/.rexp.yaml"
+	two := SessionLabel(project)
+	if global == one || one == two || global == two {
+		t.Fatal("configuration identity collision")
+	}
+}
+
+func TestBeforeStartCanPreparePaneDirectories(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX fixture")
+	}
+	project := projectFixture(t)
+	project.Tabs[0].Layout.Cwd = filepath.Join(project.Root, "generated")
+	project.Hooks.BeforeStart = [][]string{{"mkdir", "generated"}}
+	fake := &fakeRex{}
+	if _, err := (&Client{run: fake.run}).Start(context.Background(), project, Options{Background: true}); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Stat(project.Tabs[0].Layout.Cwd); err != nil || !info.IsDir() {
+		t.Fatalf("setup did not create directory: %v", err)
 	}
 }
