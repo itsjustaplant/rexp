@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"rexp/internal/workspace"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 func TestRunUsesProjectDirectoryEnvironmentAndStopsOnFailure(t *testing.T) {

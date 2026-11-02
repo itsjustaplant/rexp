@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/itsjustaplant/rexp/internal/config"
 	"github.com/spf13/cobra"
-	"rexp/internal/config"
 )
 
 func searchProjectsCommand() *cobra.Command {

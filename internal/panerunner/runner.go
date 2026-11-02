@@ -16,7 +16,7 @@ import (
 	"runtime"
 	"strings"
 
-	"rexp/internal/workspace"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 const Mode = "__run-pane"

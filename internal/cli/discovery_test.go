@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"rexp/internal/config"
-	"rexp/internal/workspace"
+	"github.com/itsjustaplant/rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 func discoveryFixture(t *testing.T) {

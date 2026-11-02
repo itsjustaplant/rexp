@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/config"
 )
 
 func TestStartRejectsInvalidInputBeforeRex(t *testing.T) {

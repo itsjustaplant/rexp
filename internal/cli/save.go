@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"rexp/internal/config"
-	"rexp/internal/rex"
+	"github.com/itsjustaplant/rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/rex"
 )
 
 func saveProjectCommand() *cobra.Command {

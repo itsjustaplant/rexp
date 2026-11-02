@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"rexp/internal/rex"
+	"github.com/itsjustaplant/rexp/internal/rex"
 )
 
 func startProjectCommand() *cobra.Command {

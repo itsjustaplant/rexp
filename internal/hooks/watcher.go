@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"rexp/internal/workspace"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 const Mode = "__watch-close"

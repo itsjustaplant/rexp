@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/config"
 )
 
 func TestLocalNewValidateAndEdit(t *testing.T) {

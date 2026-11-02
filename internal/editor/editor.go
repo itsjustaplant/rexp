@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode"
 
-	"rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/config"
 )
 
 // Resolve selects an editor without evaluating a shell command. An explicit

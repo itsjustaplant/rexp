@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/config"
 )
 
 func TestValidateAndStartRejectInvalidSizes(t *testing.T) {

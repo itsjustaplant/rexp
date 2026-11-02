@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/config"
 )
 
 // A positional name always means a global config, except explicit '.' which

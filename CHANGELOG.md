@@ -1,6 +1,20 @@
 # Changelog
 
-## 0.5.0 — Unreleased
+## 1.0.0 — 2026-11-02
+
+First release preparation. Publication and distribution remain separate steps.
+
+- Create, edit, validate, list, search, and delete saved project configurations.
+- Start, inspect status, stop, and save Rex workspaces with named and repository-local configs.
+- Configure nested pane layouts, percentage sizes, tabs, focus/selection, ordered commands, and scoped environments.
+- Run startup and whole-session after-close hooks, with terminal program-status reporting.
+- Generate Bash, Zsh, Fish, and PowerShell completion; provide detailed and JSON project listing.
+- Use the canonical `github.com/itsjustaplant/rexp` module path for Go installation.
+- Add GoReleaser platform builds, checksums, nonpublishing snapshots, and draft GitHub releases.
+- Document installation, PATH setup, and manual updates.
+- License rexp under MIT with Commons Clause v1.0, permitting internal commercial use while restricting sale as defined in the license.
+
+## 0.5.0 (development)
 
 - Simplify successful save output to a single `Saved <path>` line.
 - Add project/tab/pane environment overrides with scoped precedence, native name handling, and effective-PATH command lookup.

@@ -1,8 +1,8 @@
 package cli
 
 import (
+	"github.com/itsjustaplant/rexp/internal/programstatus"
 	"github.com/spf13/cobra"
-	"rexp/internal/programstatus"
 )
 
 // NewCommand constructs an independent command tree for one invocation.

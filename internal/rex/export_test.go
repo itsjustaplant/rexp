@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/config"
 )
 
 const exportFixture = `{

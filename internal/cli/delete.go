@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"rexp/internal/config"
-	"rexp/internal/programstatus"
+	"github.com/itsjustaplant/rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/programstatus"
 )
 
 func deleteProjectCommand() *cobra.Command {

@@ -1,4 +1,4 @@
-module rexp
+module github.com/itsjustaplant/rexp
 
 go 1.25.0
 

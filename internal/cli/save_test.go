@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/config"
 )
 
 func TestSaveArgumentsAndOverwriteProtection(t *testing.T) {

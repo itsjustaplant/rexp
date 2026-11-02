@@ -1,0 +1,51 @@
+version: 2
+project_name: rexp
+
+builds:
+  - id: rexp
+    main: .
+    binary: rexp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: rexp
+    formats:
+      - tar.gz
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+      - THIRD_PARTY_NOTICES.md
+      - README.md
+      - INSTALLATION.MD
+      - CHANGELOG.md
+      - examples/*.yaml
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+release:
+  github:
+    owner: itsjustaplant
+    name: rexp
+  draft: true
+  prerelease: auto
+
+changelog:
+  sort: asc

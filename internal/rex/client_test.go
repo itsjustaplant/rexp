@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"rexp/internal/panerunner"
-	"rexp/internal/workspace"
+	"github.com/itsjustaplant/rexp/internal/panerunner"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 type fakeRex struct {

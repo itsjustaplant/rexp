@@ -4,7 +4,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 0.9.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits. `stop` closes a project session while keeping its configuration. `status` reports its workspace session state. `search` finds saved names, `list --long`/`--json` expose configuration metadata, and `completion` generates shell integration.
+The source version is currently 1.0.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits. `stop` closes a project session while keeping its configuration. `status` reports its workspace session state. `search` finds saved names, `list --long`/`--json` expose configuration metadata, and `completion` generates shell integration.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -15,6 +15,10 @@ On startup, rexp creates `.rexp/projects` inside the current user's home directo
 | Windows | Usually `C:\Users\<username>\.rexp` |
 
 The actual path comes from Go's `os.UserHomeDir` (`HOME` on macOS/Linux, `USERPROFILE` on Windows). The setup also runs for help and version invocations. Completion script generation and Tab-completion probes skip initialization and terminal status reports. Repeated runs preserve existing files and restore missing directories. On Unix, newly created directories use owner-only permissions. Initialization does not create configuration files yet. `XDG_CONFIG_HOME` does not change this location.
+
+## Installation
+
+See [INSTALLATION.MD](INSTALLATION.MD) for Go installation, prebuilt downloads, source builds, PATH setup, and shell completion.
 
 ## Development
 
@@ -27,7 +31,7 @@ go run . --version
 go run . new --help
 ```
 
-`go run . --version` prints `rexp 0.9.0`.
+`go run . --version` prints `rexp 1.0.0`.
 
 Build and check:
 
@@ -38,7 +42,7 @@ make test
 ./bin/rexp --help
 ```
 
-The module path is temporarily `rexp`. Set its final repository URL before distributing it through `go install`.
+The module path is `github.com/itsjustaplant/rexp`. Once a compatible version is published, install with `go install github.com/itsjustaplant/rexp@latest`; see [INSTALLATION.MD](INSTALLATION.MD) for PATH setup and other installation methods.
 
 ## Shell completion
 
@@ -432,3 +436,22 @@ rexp start four-shells
 ```
 
 Expect one pane covering the left half and three stacked panes covering the right half, with the left pane focused. The second start prints `Reused` and creates no additional panes. Use `rexp edit my-app` to update the saved configuration.
+
+## Release builds
+
+[GoReleaser](https://goreleaser.com/) builds amd64/arm64 binaries for macOS, Linux, and Windows using `.goreleaser.yaml`. Archives include the license, installation instructions, the README, changelog, and example configs, plus a SHA-256 checksum manifest. Release binaries receive the tag version through `main.version`; `go install` builds use the version in the tagged source.
+
+The Release workflow can be run manually to build nonpublishing snapshot artifacts. Pushing an intentional `v*` version tag runs checks, requires the tag to match the source version, and creates a **draft** GitHub Release. Review the draft before publishing binary downloads. A public Git tag can already be discovered by `go install` independently of whether the GitHub Release is published.
+
+For a local preview with [GoReleaser v2](https://goreleaser.com/install/) installed:
+
+```sh
+goreleaser check
+goreleaser release --snapshot --clean --skip=publish
+```
+
+Snapshot archives/checksums are written under ignored `dist/`. No release tag, push, or publication is needed to prepare a snapshot. Release signing/notarization and Homebrew packaging are not configured. Complete platform verification before the public release.
+
+## License
+
+Rexp is source-available under the [MIT License with Commons Clause v1.0](LICENSE). You may use it internally for commercial work, fork it, modify it, and redistribute it subject to the license terms. The Commons Clause restricts selling rexp or providing paid products/services whose value derives entirely or substantially from its functionality; its definition includes certain hosting and consulting/support fees. It is not an OSI-approved open-source license. See LICENSE for the full terms. Third-party dependencies retain their respective licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

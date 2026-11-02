@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"rexp/internal/workspace"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 type WorkspaceState string

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/itsjustaplant/rexp/internal/rex"
 	"github.com/spf13/cobra"
-	"rexp/internal/rex"
 )
 
 func statusProjectCommand() *cobra.Command {

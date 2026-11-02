@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"rexp/internal/config"
-	"rexp/internal/programstatus"
+	"github.com/itsjustaplant/rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/programstatus"
 )
 
 func reportStates(data string) []string {

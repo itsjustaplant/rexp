@@ -6,14 +6,14 @@ import (
 	"os"
 	"os/signal"
 
-	"rexp/internal/cli"
-	"rexp/internal/hooks"
-	"rexp/internal/panerunner"
-	"rexp/internal/programstatus"
+	"github.com/itsjustaplant/rexp/internal/cli"
+	"github.com/itsjustaplant/rexp/internal/hooks"
+	"github.com/itsjustaplant/rexp/internal/panerunner"
+	"github.com/itsjustaplant/rexp/internal/programstatus"
 )
 
 // Set at build time with -ldflags "-X main.version=...".
-var version = "0.9.0"
+var version = "1.0.0"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

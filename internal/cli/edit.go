@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"rexp/internal/config"
-	"rexp/internal/editor"
-	"rexp/internal/programstatus"
+	"github.com/itsjustaplant/rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/editor"
+	"github.com/itsjustaplant/rexp/internal/programstatus"
 )
 
 func editProjectCommand() *cobra.Command {

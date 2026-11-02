@@ -9,7 +9,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"rexp/internal/workspace"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 // ValidateProjectName checks that a name is portable and safe as a filename.

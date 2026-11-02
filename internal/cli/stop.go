@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"rexp/internal/programstatus"
-	"rexp/internal/rex"
+	"github.com/itsjustaplant/rexp/internal/programstatus"
+	"github.com/itsjustaplant/rexp/internal/rex"
 )
 
 func stopProjectCommand() *cobra.Command {

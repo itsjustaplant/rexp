@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"rexp/internal/hooks"
-	"rexp/internal/panerunner"
-	"rexp/internal/workspace"
+	"github.com/itsjustaplant/rexp/internal/hooks"
+	"github.com/itsjustaplant/rexp/internal/panerunner"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 type Client struct {

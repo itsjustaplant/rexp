@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/config"
 )
 
 // A real subprocess, portable across platforms, exercises argument boundaries

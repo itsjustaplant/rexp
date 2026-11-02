@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"rexp/internal/config"
-	"rexp/internal/rex"
+	"github.com/itsjustaplant/rexp/internal/config"
+	"github.com/itsjustaplant/rexp/internal/rex"
 )
 
 func TestStatusCLIStatesAreReadOnly(t *testing.T) {

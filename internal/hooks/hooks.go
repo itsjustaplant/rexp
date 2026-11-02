@@ -4,9 +4,9 @@ package hooks
 import (
 	"context"
 	"fmt"
+	"github.com/itsjustaplant/rexp/internal/panerunner"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 	"io"
-	"rexp/internal/panerunner"
-	"rexp/internal/workspace"
 )
 
 func Run(ctx context.Context, project *workspace.Project, session, phase string, commands [][]string, out, stderr io.Writer) error {

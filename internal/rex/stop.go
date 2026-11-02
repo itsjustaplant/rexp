@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"rexp/internal/workspace"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 // StopTarget identifies one complete or incomplete workspace session.

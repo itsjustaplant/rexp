@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"rexp/internal/workspace"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 func stopListing(id, label string) string {

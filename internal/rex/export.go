@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"rexp/internal/workspace"
+	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 // These fields mirror rex session inspect --json. Keep the binary split tree:
