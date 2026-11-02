@@ -32,3 +32,13 @@ func Execute(root *cobra.Command, reporter *programstatus.Reporter) error {
 	reporter.Finish(err, name)
 	return err
 }
+
+// ExecuteArguments keeps generated scripts and Tab-completion probes free of
+// configuration initialization and terminal lifecycle reports.
+func ExecuteArguments(root *cobra.Command, reporter *programstatus.Reporter, args []string) error {
+	root.SetArgs(args)
+	if isCompletionInvocation(args) {
+		return root.Execute()
+	}
+	return Execute(root, reporter)
+}

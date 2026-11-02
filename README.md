@@ -4,7 +4,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 0.7.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits. `stop` closes a project session while keeping its configuration.
+The source version is currently 0.8.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits. `stop` closes a project session while keeping its configuration. `search` finds saved names, `list --long`/`--json` expose configuration metadata, and `completion` generates shell integration.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -14,7 +14,7 @@ On startup, rexp creates `.rexp/projects` inside the current user's home directo
 | Linux | Usually `/home/<username>/.rexp` |
 | Windows | Usually `C:\Users\<username>\.rexp` |
 
-The actual path comes from Go's `os.UserHomeDir` (`HOME` on macOS/Linux, `USERPROFILE` on Windows). The setup also runs for help and version invocations. Repeated runs preserve existing files and restore missing directories. On Unix, newly created directories use owner-only permissions. Initialization does not create configuration files yet. `XDG_CONFIG_HOME` does not change this location.
+The actual path comes from Go's `os.UserHomeDir` (`HOME` on macOS/Linux, `USERPROFILE` on Windows). The setup also runs for help and version invocations. Completion script generation and Tab-completion probes skip initialization and terminal status reports. Repeated runs preserve existing files and restore missing directories. On Unix, newly created directories use owner-only permissions. Initialization does not create configuration files yet. `XDG_CONFIG_HOME` does not change this location.
 
 ## Development
 
@@ -27,7 +27,7 @@ go run . --version
 go run . new --help
 ```
 
-`go run . --version` prints `rexp 0.7.0`.
+`go run . --version` prints `rexp 0.8.0`.
 
 Build and check:
 
@@ -39,6 +39,58 @@ make test
 ```
 
 The module path is temporarily `rexp`. Set its final repository URL before distributing it through `go install`.
+
+## Shell completion
+
+Rexp uses [Cobra's shell completion](https://cobra.dev/docs/how-to-guides/shell-completion/) to generate scripts for Bash, Zsh, Fish, and PowerShell. Scripts complete subcommands and flags; saved project names are suggested for start, stop, edit, validate, delete, and search. Start/stop/edit/validate also suggest `.` when a regular `.rexp.yaml` exists in the current directory. `--file` completes YAML filenames and directories. Project names use case-sensitive prefix matching during completion, according to what you type; search uses case-insensitive substring matching.
+
+Make sure the built binary is on PATH. From this repository, you can use `export PATH="$PWD/bin:$PATH"` in your current shell after `make build`.
+
+Load completion for your current shell session:
+
+```sh
+# Zsh: initialize completion first if your shell setup has not already done so.
+autoload -Uz compinit
+compinit
+source <(rexp completion zsh)
+
+# Bash (with bash-completion available in your shell setup):
+source <(rexp completion bash)
+
+# Fish:
+rexp completion fish | source
+```
+
+In PowerShell:
+
+```powershell
+rexp completion powershell | Out-String | Invoke-Expression
+```
+
+For example, type `rexp sta` then press Tab to complete `start`; type `rexp start my` then Tab to suggest matching saved projects. Tab does not execute the command.
+
+To persist completion, add the appropriate load command to your shell startup file yourself (after your PATH and completion setup), or save a generated script and source it there. For Fish, save it to `~/.config/fish/completions/rexp.fish` after creating that directory. Rexp prints scripts to stdout; it never edits your shell config or installs scripts. Generated scripts query the current binary, so newly saved project names appear without regenerating the script. Regenerate/reload after updating the CLI's commands/flags.
+
+Tab probes read filenames from `~/.rexp/projects` without parsing project YAML, contacting Rex, opening editors, or executing commands/hooks. Missing projects directories are treated as empty. Invalid YAML files can still be suggested by their valid names; invalid names, symlinks, directories, and unrelated files are ignored. Completion does not initialize `~/.rexp` or send program status notifications. Rex session IDs/client labels are not queried for suggestions.
+
+## Search and detailed listing
+
+```sh
+rexp list
+rexp search api
+rexp search API --long
+rexp list --long
+rexp list --json
+rexp search api --json
+```
+
+Plain `list` keeps its alphabetical, one-name-per-line output. Search matches a case-insensitive substring of the global saved **project name**, returning the same order. YAML contents are not searched. A missing/blank query is an error; no matches prints `No projects matched.` and succeeds. Repository-local configs are not registered or discovered by these commands.
+
+`--long` (or `-l`) shows NAME, ROOT, TABS, PANES, STATUS, PATH, and ERROR columns. Counts include every tab and terminal pane across nested splits. STATUS means configuration validity, not whether a Rex session is running or its programs are healthy. Missing root directories do not invalidate a structurally valid config.
+
+`--json` returns an array of objects with the same metadata. A valid entry includes `name`, `path`, `valid: true`, `root`, `tabs`, and `panes`. Invalid entries include `name`, `path`, `valid: false`, and `error`, omitting untrusted root/count metadata. An empty list or search result is `[]`. `--long` and `--json` are mutually exclusive.
+
+Both detailed formats preserve malformed/unreadable configs as invalid entries and continue listing other projects. Entry-level validation failures do not make the command fail; errors reading the projects directory do. Plain list/search read filenames only. Detailed output parses selected files but never launches Rex or project code, and does not dump commands or environment values. The JSON fields are configuration metadata only.
 
 ## Terminal program status
 

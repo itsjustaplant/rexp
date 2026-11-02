@@ -19,7 +19,7 @@ func NewCommand(version string) *cobra.Command {
 			if err := cmd.Context().Err(); err != nil {
 				return err
 			}
-			if cmd.Parent() != nil && cmd.RunE != nil {
+			if cmd.Parent() != nil && cmd.RunE != nil && !completionName(cmd.Name()) {
 				programstatus.Working(cmd.Context(), "Running "+cmd.CommandPath())
 			}
 			return nil
@@ -39,7 +39,10 @@ func NewCommand(version string) *cobra.Command {
 		startProjectCommand(),
 		stopProjectCommand(),
 		listProjectsCommand(),
+		searchProjectsCommand(),
+		completionCommand(),
 		validateProjectCommand(),
 	)
+	configureCompletions(root)
 	return root
 }

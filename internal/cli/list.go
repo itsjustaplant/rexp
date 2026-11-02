@@ -1,35 +1,26 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
-
 	"rexp/internal/config"
 )
 
 func listProjectsCommand() *cobra.Command {
-	return &cobra.Command{
+	var output projectOutput
+	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "List saved project configurations",
-		Long:    "List saved project names alphabetically, one per line.\nReads filenames in ~/.rexp/projects without parsing YAML or connecting to Rex.",
-		Example: "  rexp list",
+		Long:    "List saved project names alphabetically, one per line.\nUse --long for metadata or --json for machine-readable details.\nReads global configuration files without contacting Rex or running commands/hooks.",
+		Example: "  rexp list\n  rexp list --long\n  rexp list --json",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			names, err := config.ListProjects()
 			if err != nil {
 				return err
 			}
-			if len(names) == 0 {
-				_, err := fmt.Fprintln(cmd.OutOrStdout(), "No projects found. Create one with 'rexp new <project>'.")
-				return err
-			}
-			for _, name := range names {
-				if _, err := fmt.Fprintln(cmd.OutOrStdout(), name); err != nil {
-					return err
-				}
-			}
-			return nil
+			return output.write(cmd, names, "No projects found. Create one with 'rexp new <project>'.")
 		},
 	}
+	output.bind(cmd)
+	return cmd
 }

@@ -13,7 +13,7 @@ import (
 )
 
 // Set at build time with -ldflags "-X main.version=...".
-var version = "0.7.0"
+var version = "0.8.0"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -34,7 +34,7 @@ func main() {
 	}
 	command := cli.NewCommand(version)
 	command.SetContext(ctx)
-	if err := cli.Execute(command, programstatus.NewTerminal(os.Stderr)); err != nil {
+	if err := cli.ExecuteArguments(command, programstatus.NewTerminal(os.Stderr), os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		if ctx.Err() != nil {
 			os.Exit(130)

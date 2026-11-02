@@ -14,6 +14,7 @@ type projectTarget struct{ file string }
 
 func (target *projectTarget) bind(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&target.file, "file", "", "Read a configuration file (relative roots resolve beside it)")
+	_ = cmd.MarkFlagFilename("file", "yaml", "yml")
 }
 
 func (target *projectTarget) args(cmd *cobra.Command, args []string) error {
