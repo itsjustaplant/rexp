@@ -71,8 +71,22 @@ Identical installations succeed without rewriting the file. A different existing
 file is preserved; use `rexp skill install codex --force` (or `claude`) to replace
 it after reviewing your changes. Installation rejects symlink skill files or a
 symlink `rexp` directory. Only `SKILL.md` is installed; other agent settings are
-left alone. Remove the installed `SKILL.md` to uninstall. After upgrading rexp,
+left alone. After upgrading rexp,
 rerun installation with `--force` to update an older skill.
+
+Uninstall with:
+
+```sh
+rexp skill remove codex
+rexp skill remove claude
+```
+
+Removal deletes only the selected agent's `rexp/SKILL.md`, retaining its directory
+and other files. A missing installation succeeds without creating directories.
+If the file differs from the bundled skill (an older version or a customization),
+it is preserved unless you pass `--force`. Symlink files and a symlink `rexp`
+directory are rejected even with `--force`. Agent settings and other skills are
+left alone.
 
 The maintained source is [`internal/agentskill/rexp/SKILL.md`](internal/agentskill/rexp/SKILL.md).
 For custom locations, print it with `rexp skill show` and install it manually.

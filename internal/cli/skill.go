@@ -11,7 +11,7 @@ import (
 
 func skillCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "skill", Short: "Show or install the shared Codex and Claude skill",
+		Use: "skill", Short: "Show, install, or remove the shared Codex and Claude skill",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
@@ -43,6 +43,31 @@ func skillCommand() *cobra.Command {
 		},
 	}
 	install.Flags().BoolVar(&force, "force", false, "Replace an existing skill file")
-	cmd.AddCommand(show, install)
+	var removeForce bool
+	remove := &cobra.Command{
+		Use: "remove <codex|claude>", Short: "Remove the installed skill for the current user",
+		Long:      "Remove only the selected agent's rexp SKILL.md, keeping its directory and other files.\nMissing installations are a successful no-op. Files differing from the bundled version\n(including older versions or customizations) require --force. Symlinks are rejected.",
+		Example:   "  rexp skill remove codex\n  rexp skill remove claude\n  rexp skill remove codex --force",
+		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+		ValidArgs: []string{"codex", "claude"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return fmt.Errorf("find user home directory: %w", err)
+			}
+			path, removed, err := agentskill.Remove(home, args[0], removeForce)
+			if err != nil {
+				return err
+			}
+			if !removed {
+				_, err = fmt.Fprintf(cmd.OutOrStdout(), "No skill installed at %s\n", path)
+			} else {
+				_, err = fmt.Fprintf(cmd.OutOrStdout(), "Removed skill at %s\n", path)
+			}
+			return err
+		},
+	}
+	remove.Flags().BoolVar(&removeForce, "force", false, "Remove a skill that differs from the bundled version")
+	cmd.AddCommand(show, install, remove)
 	return cmd
 }
