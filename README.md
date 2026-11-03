@@ -6,7 +6,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 1.0.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits. `stop` closes a project session while keeping its configuration. `status` reports its workspace session state. `search` finds saved names, `list --long`/`--json` expose configuration metadata, and `completion` generates shell integration.
+The source version is currently 1.1.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits. `stop` closes a project session while keeping its configuration. `status` reports its workspace session state. `search` finds saved names, `list --long`/`--json` expose configuration metadata, and `completion` generates shell integration. `switch` selects an existing session, `use` starts a saved workspace if needed and switches to it, `skill` manages the shared agent skill, and `init` offers interactive setup and a welcome demo.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -33,7 +33,7 @@ go run . --version
 go run . new --help
 ```
 
-`go run . --version` prints `rexp 1.0.0`.
+`go run . --version` prints `rexp 1.1.0`.
 
 Build and check:
 

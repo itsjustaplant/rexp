@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 — 2026-11-03
+
+- Bundle a shared workspace skill for Codex and Claude Code with `skill show`, `skill install`, and `skill remove` commands.
+- Add `switch` to select running Rex sessions by project shorthand, exact label, or full ID, with local/file workspace targeting and explicit client selection.
+- Add `use` to start a saved workspace if needed and switch to it, reusing existing sessions without rerunning programs or hooks.
+- Add first-run interactive onboarding and replayable `init`/`intro` commands with optional skill installation and shell completion setup.
+- Install completion for Zsh, Bash, and Fish with user consent, preserving existing settings and avoiding duplicate setup blocks.
+- Include a two-pane welcome demo with a live ASCII clock and the rexp dinosaur logo.
+
 ## 1.0.0 — 2026-11-02
 
 First release preparation. Publication and distribution remain separate steps.
