@@ -12,6 +12,9 @@ import (
 //go:embed rexp/SKILL.md
 var Content string
 
+// ErrConflict identifies a skill that requires explicit replacement consent.
+var ErrConflict = errors.New("existing skill differs from the bundled version")
+
 // Install writes the bundled skill, preserving existing content unless forced.
 // An identical installation is a successful no-op.
 func Install(home, agent string, force bool) (string, error) {
@@ -40,7 +43,7 @@ func Install(home, agent string, force bool) (string, error) {
 			return path, nil
 		}
 		if !force {
-			return "", fmt.Errorf("skill already exists at %s; use --force to replace it", path)
+			return "", fmt.Errorf("%w at %s; use --force to replace it", ErrConflict, path)
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("inspect skill destination: %w", err)

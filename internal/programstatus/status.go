@@ -34,6 +34,9 @@ type Reporter struct {
 
 func New(writer io.Writer) *Reporter { return &Reporter{writer: writer} }
 
+// IsTerminal reports whether file is an interactive terminal without reading it.
+func IsTerminal(file *os.File) bool { return file != nil && isTerminal(file) }
+
 // NewTerminal never queries stdin for protocol support. Unknown OSC sequences
 // may safely be ignored; redirected stderr and dumb terminals receive nothing.
 func NewTerminal(stderr *os.File) *Reporter {

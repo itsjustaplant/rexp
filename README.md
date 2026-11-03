@@ -46,6 +46,39 @@ make test
 
 The module path is `github.com/itsjustaplant/rexp`. Once a compatible version is published, install with `go install github.com/itsjustaplant/rexp@latest`; see [INSTALLATION.MD](INSTALLATION.MD) for PATH setup and other installation methods.
 
+## First-run setup
+
+After installing rexp, run it without arguments in an interactive terminal. The
+first launch offers setup; you can replay it any time with either command:
+
+```sh
+rexp init
+rexp intro
+```
+
+Setup asks before installing the Codex and Claude Code skills, then shows which
+startup files it would change and asks before enabling shell completion. It
+detects the shell from `SHELL`; use `--shell zsh`, `--shell bash`, or `--shell fish`
+to choose explicitly. Zsh honors `ZDOTDIR`, Fish honors `XDG_CONFIG_HOME`, and Bash
+uses `.bashrc` plus the first existing login profile (or a new `.bash_profile`).
+Startup files are appended to; existing managed completion blocks are kept to
+avoid duplicates. Symlink startup files and unfamiliar Fish completion files are
+preserved with an error. Open a new shell with rexp on PATH to use completion.
+
+Finally, setup offers a two-pane Rex demo: a live ASCII clock and an ASCII version
+of the dinosaur icon with `rexp` beside it. The demo needs the Rex CLI, a reachable
+server, and Remote Control. Use `--client <client>` for a specific Rex app, or
+`--no-demo` to configure integrations without offering the example. Use a built
+binary (such as `./bin/rexp init`), since the demo clock runs that executable.
+Repeated runs reuse the `rexp:rexp-intro` session without launching duplicate panes.
+The demo does not save or overwrite a project config; setup prints its session ID
+and a `rex kill <session-id>` command for closing it when finished.
+
+Successful setup records `~/.rexp/state/onboarding-done`. Normal subcommands,
+help/version output, redirected output, and shell completion never start setup
+automatically. An interrupted or failed setup can be retried; earlier accepted
+changes are retained. `go install` itself cannot run interactive setup.
+
 ## Agent skill
 
 Install the shared workspace skill for Codex or Claude Code:
@@ -122,7 +155,7 @@ rexp completion powershell | Out-String | Invoke-Expression
 
 For example, type `rexp sta` then press Tab to complete `start`; type `rexp start my` then Tab to suggest matching saved projects. Tab does not execute the command.
 
-To persist completion, add the appropriate load command to your shell startup file yourself (after your PATH and completion setup), or save a generated script and source it there. For Fish, save it to `~/.config/fish/completions/rexp.fish` after creating that directory. Rexp prints scripts to stdout; it never edits your shell config or installs scripts. Generated scripts query the current binary, so newly saved project names appear without regenerating the script. Regenerate/reload after updating the CLI's commands/flags.
+To persist completion, use `rexp init` for opt-in setup, add the appropriate load command to your shell startup file yourself (after your PATH and completion setup), or save a generated script and source it there. For Fish, save it to `~/.config/fish/completions/rexp.fish` after creating that directory. The `completion` command only prints scripts to stdout. Generated scripts query the current binary, so newly saved project names appear without regenerating the script. Regenerate/reload after updating the CLI's commands/flags.
 
 Tab probes read filenames from `~/.rexp/projects` without parsing project YAML, contacting Rex, opening editors, or executing commands/hooks. Missing projects directories are treated as empty. Invalid YAML files can still be suggested by their valid names; invalid names, symlinks, directories, and unrelated files are ignored. Completion does not initialize `~/.rexp` or send program status notifications. Rex session IDs/client labels are not queried for suggestions.
 

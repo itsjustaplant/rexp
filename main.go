@@ -7,6 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/itsjustaplant/rexp/internal/cli"
+	"github.com/itsjustaplant/rexp/internal/demo"
 	"github.com/itsjustaplant/rexp/internal/hooks"
 	"github.com/itsjustaplant/rexp/internal/panerunner"
 	"github.com/itsjustaplant/rexp/internal/programstatus"
@@ -18,6 +19,13 @@ var version = "1.0.0"
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+	if len(os.Args) > 1 && os.Args[1] == demo.Mode {
+		if err := demo.Run(ctx, os.Args[2:], os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == panerunner.Mode {
 		code, err := panerunner.Run(ctx, os.Args[2:], os.Stdin, os.Stdout, os.Stderr)
 		if err != nil {

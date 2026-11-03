@@ -25,6 +25,13 @@ func NewCommand(version string) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			first, err := firstRun(cmd)
+			if err != nil {
+				return err
+			}
+			if first {
+				return runInit(cmd, initOptions{})
+			}
 			return cmd.Help()
 		},
 		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
@@ -32,6 +39,7 @@ func NewCommand(version string) *cobra.Command {
 	root.SetVersionTemplate("rexp {{.Version}}\n")
 
 	root.AddCommand(
+		initCommand(),
 		newProjectCommand(),
 		saveProjectCommand(),
 		deleteProjectCommand(),

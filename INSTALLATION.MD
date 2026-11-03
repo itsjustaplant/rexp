@@ -134,6 +134,27 @@ go build -o bin/rexp.exe .
 .\bin\rexp.exe --version
 ```
 
+## Set up skills, completion, and an example
+
+Once rexp is on PATH, run `rexp` in an interactive terminal to start first-run
+setup, or run it explicitly:
+
+```sh
+rexp init
+```
+
+It asks before installing skills for Codex or Claude Code and before adding shell
+completion. It then offers a two-pane demo with a live clock and the rexp dinosaur.
+Use `rexp init --no-demo` to set up integrations only, or `--shell zsh`, `--shell
+bash`, or `--shell fish` to override shell detection. Open a new shell afterward
+with rexp on PATH. With several Rex app clients, use `--client <client>` for the
+demo. Setup can be replayed with `rexp init` or `rexp intro`; repeated setup keeps
+existing integrations and reuses the demo session.
+
+Only running bare `rexp` in an interactive terminal starts onboarding
+automatically; installation, help/version, scripts, and completion probes do not.
+See [first-run setup](README.md#first-run-setup) for file locations and details.
+
 ## Verify your first workspace
 
 Check that Rex is available:
@@ -193,7 +214,7 @@ rexp completion fish | source
 rexp completion powershell | Out-String | Invoke-Expression
 ```
 
-For persistent completion, add the appropriate load command to your shell startup file after PATH/completion initialization. Suggestions do not run project code or contact Rex.
+For persistent completion, use `rexp init` or add the appropriate load command to your shell startup file after PATH/completion initialization. Suggestions do not run project code or contact Rex.
 
 ## Update or roll back
 
