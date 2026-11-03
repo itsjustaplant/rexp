@@ -344,15 +344,19 @@ func (client *Client) selectSession(ctx context.Context, result Result, options 
 	if options.Background {
 		return nil
 	}
-	args := []string{}
-	if options.Client != "" {
-		args = append(args, "-C", options.Client)
-	}
-	args = append(args, "do", "session.select", "session_id="+result.SessionID)
-	if err := client.command(ctx, args...); err != nil {
+	if err := client.selectSessionID(ctx, result.SessionID, options.Client); err != nil {
 		return fmt.Errorf("session %s is ready, but could not select it in Rex: %w; enable Remote Control or use --client/--background", result.SessionID, err)
 	}
 	return nil
+}
+
+func (client *Client) selectSessionID(ctx context.Context, sessionID, appClient string) error {
+	args := []string{}
+	if appClient != "" {
+		args = append(args, "-C", appClient)
+	}
+	args = append(args, "do", "session.select", "session_id="+sessionID)
+	return client.command(ctx, args...)
 }
 
 func (client *Client) command(ctx context.Context, args ...string) error {

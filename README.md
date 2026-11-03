@@ -201,6 +201,67 @@ Choose a name, `.`, or `--file`; a name plus `--file` is an error. A bare name a
 
 Reading or editing a configuration does not execute its commands or hooks. Starting a file explicitly executes its configured programs.
 
+## Switch to an existing session
+
+```sh
+rexp switch my-app
+rexp switch rexp:my-app
+rexp switch session:...
+rexp switch .
+rexp switch --file ~/projects/my-app/.rexp.yaml
+rexp switch my-app --client <rex-client-id-or-label>
+```
+
+`switch` selects an existing session in the Rex app. It never creates sessions,
+launches programs, or runs hooks. A missing target is an error. Use `rex ls` to
+find running sessions; `rexp list` lists saved configurations.
+
+A target can be a full session ID, an exact session label (including unmanaged
+Rex sessions), or a global project shorthand: `my-app` also matches `rexp:my-app`.
+A full ID takes precedence. Multiple matches or labels differing only in case
+produce an error; use a full session ID to choose explicitly. Names are passed
+literally, so quote labels containing spaces. Named targets do not require a
+saved configuration or existing project directory.
+
+`.` and `--file` load the selected local configuration to identify its session,
+using the same path hash as `start`. They require a valid config but do not check
+root/pane directory existence. An incomplete `:starting` session can be selected
+for inspection using its full label or ID; shorthand does not select it.
+
+Selection uses Rex Remote Control and honors `REX_CLIENT`, or an explicit
+`--client`. With multiple app clients, choose one explicitly. Selection errors
+are reported without retrying or creating a replacement session. Rex controls
+how the selected session is presented in its app.
+
+Shell completion suggests saved project names and local `.` without querying
+Rex; it does not establish whether those sessions are running. Full session IDs
+and arbitrary live labels can be entered directly.
+
+## Use a workspace
+
+```sh
+rexp use my-app
+rexp use .
+rexp use --file ~/projects/my-app/.rexp.yaml
+rexp use my-app --client <rex-client-id-or-label>
+```
+
+`use` switches to a saved project's workspace, starting it first if no matching
+session exists. Unlike `switch`, it requires a valid saved configuration and can
+launch programs and hooks. Existing sessions are reused without rerunning
+commands, applying config edits, or adding another close observer.
+
+A new workspace is selected after layout setup and startup hooks finish. This
+does not wait for services to become healthy. Failed startup preserves the
+incomplete session; failed app selection leaves a completed workspace available
+for another `use` or `switch`. Incomplete or ambiguous matches return an error
+instead of launching another session.
+
+`use` shares `start`'s startup behavior and defaults, including local/file
+identity and `REX_CLIENT`. It always requests app selection, so it has no
+`--background` flag. Existing `start` behavior is unchanged; use `start
+--background` when you want to prepare a workspace without selecting it.
+
 ## Stop a workspace
 
 ```sh

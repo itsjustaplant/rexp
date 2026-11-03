@@ -1,6 +1,6 @@
 ---
 name: rexp
-description: Manage saved Rex project workspaces with rexp. Use to create, save, configure, validate, start, inspect, stop, or delete rexp workspaces; use Rex directly for individual tabs and panes.
+description: Manage saved Rex project workspaces with rexp. Use to create, save, configure, validate, start, use, switch, inspect, stop, or delete rexp workspaces; use Rex directly for individual tabs and panes.
 ---
 
 # rexp workspaces
@@ -107,6 +107,23 @@ delete it. Explain the state and use the matching stop target when the user
 authorizes closing it. Ambiguous matches need explicit inspection in Rex.
 An app selection error can follow successful setup; retrying a completed start
 reuses that session. Report failures without claiming the workspace is ready.
+
+## Switch without starting
+
+For a saved workspace that may not be running, use `rexp use <project>`, `rexp
+use .`, or `rexp use --file <path>`. This starts it if needed, then selects it in
+the Rex app. It shares `start`'s reuse, hooks, and failure handling; it has no
+`--background` option. It selects after startup, without waiting for service health.
+
+`rexp switch <session>` selects an existing session by full ID, exact label, or
+global project shorthand (`my-app` matches `rexp:my-app`). It never creates a
+session or runs configured programs/hooks. Missing targets are errors; use
+`rex ls` to discover live sessions. Full IDs take precedence; ambiguous names
+require an explicit ID. Named targets do not require a saved configuration.
+`rexp switch .` and `rexp switch --file <path>` resolve a local config's identity.
+Use `--client` for a specific Rex app, or preserve `REX_CLIENT`.
+An incomplete startup can be selected for inspection by full ID or label, but
+switching does not repair it. Shorthand does not select `:starting` sessions.
 
 ## Stop versus delete
 
