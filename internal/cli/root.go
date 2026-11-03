@@ -42,6 +42,7 @@ func NewCommand(version string) *cobra.Command {
 		listProjectsCommand(),
 		searchProjectsCommand(),
 		completionCommand(),
+		skillCommand(),
 		validateProjectCommand(),
 	)
 	configureCompletions(root)

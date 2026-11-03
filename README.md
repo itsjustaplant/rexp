@@ -46,6 +46,39 @@ make test
 
 The module path is `github.com/itsjustaplant/rexp`. Once a compatible version is published, install with `go install github.com/itsjustaplant/rexp@latest`; see [INSTALLATION.MD](INSTALLATION.MD) for PATH setup and other installation methods.
 
+## Agent skill
+
+Install the shared workspace skill for Codex or Claude Code:
+
+```sh
+rexp skill show
+rexp skill install codex
+rexp skill install claude
+```
+
+The skill is bundled in the executable and works without downloading files or
+connecting to Rex. Codex installs to `~/.agents/skills/rexp/SKILL.md`; Claude Code
+installs to `~/.claude/skills/rexp/SKILL.md`. These are user-wide installations.
+Start a new agent session if the skill is not visible, then invoke `$rexp` in
+Codex or `/rexp` in Claude Code, or ask to manage a rexp workspace.
+
+Both agents receive the same instructions for creating, saving, configuring,
+validating, starting, inspecting, and stopping workspaces. The skill explains
+target selection, session reuse, incomplete starts, and save limitations. It
+does not change agent permissions or configure automatic hooks.
+
+Identical installations succeed without rewriting the file. A different existing
+file is preserved; use `rexp skill install codex --force` (or `claude`) to replace
+it after reviewing your changes. Installation rejects symlink skill files or a
+symlink `rexp` directory. Only `SKILL.md` is installed; other agent settings are
+left alone. Remove the installed `SKILL.md` to uninstall. After upgrading rexp,
+rerun installation with `--force` to update an older skill.
+
+The maintained source is [`internal/agentskill/rexp/SKILL.md`](internal/agentskill/rexp/SKILL.md).
+For custom locations, print it with `rexp skill show` and install it manually.
+See the [Codex skill locations](https://developers.openai.com/codex/skills/)
+and [Claude Code skill locations](https://code.claude.com/docs/en/skills).
+
 ## Shell completion
 
 Rexp uses [Cobra's shell completion](https://cobra.dev/docs/how-to-guides/shell-completion/) to generate scripts for Bash, Zsh, Fish, and PowerShell. Scripts complete subcommands and flags; saved project names are suggested for start, stop, status, edit, validate, delete, and search. Start/stop/status/edit/validate also suggest `.` when a regular `.rexp.yaml` exists in the current directory. `--file` completes YAML filenames and directories. Project names use case-sensitive prefix matching during completion, according to what you type; search uses case-insensitive substring matching.
