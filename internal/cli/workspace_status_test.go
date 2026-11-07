@@ -38,7 +38,7 @@ func TestStatusCLIStatesAreReadOnly(t *testing.T) {
 	calls := filepath.Join(bin, "calls.log")
 	t.Setenv("PATH", bin)
 	t.Setenv("REXP_STATUS_CALLS", calls)
-	script := `#!/bin/sh
+	script := "#!/bin/sh\n" + rexIdentityStub + `
 printf '%s\n' "$*" >> "$REXP_STATUS_CALLS"
 [ "$1" = ls ] && [ "$2" = --json ] || exit 98
 printf '%s\n' "$REXP_STATUS_LISTING"

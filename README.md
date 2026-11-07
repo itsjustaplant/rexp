@@ -6,7 +6,7 @@ Named project workspaces for [Rex](https://www.superlogical.com/rex).
 
 ## Status
 
-The source version is currently 1.1.0. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits. `stop` closes a project session while keeping its configuration. `status` reports its workspace session state. `search` finds saved names, `list --long`/`--json` expose configuration metadata, and `completion` generates shell integration. `switch` selects an existing session, `use` starts a saved workspace if needed and switches to it, `skill` manages the shared agent skill, and `init` offers interactive setup and a welcome demo.
+The source version is currently 1.1.1. `new` creates starter project configurations, `save` captures an existing Rex workspace, `list` shows saved project names, `validate` checks their structure, and `delete` removes saved configurations. Help, version output, and argument parsing are available. `start` launches the configured workspace through the installed Rex CLI, or selects an existing project session. `edit` opens saved configurations in an external editor and validates them after it exits. `stop` closes a project session while keeping its configuration. `status` reports its workspace session state. `search` finds saved names, `list --long`/`--json` expose configuration metadata, and `completion` generates shell integration. `switch` selects an existing session, `use` starts a saved workspace if needed and switches to it, `skill` manages the shared agent skill, and `init` offers interactive setup and a welcome demo.
 
 On startup, rexp creates `.rexp/projects` inside the current user's home directory:
 
@@ -33,7 +33,7 @@ go run . --version
 go run . new --help
 ```
 
-`go run . --version` prints `rexp 1.1.0`.
+`go run . --version` prints `rexp 1.1.1`.
 
 Build and check:
 
@@ -248,6 +248,71 @@ Choose a name, `.`, or `--file`; a name plus `--file` is an error. A bare name a
 
 Reading or editing a configuration does not execute its commands or hooks. Starting a file explicitly executes its configured programs.
 
+## Persistent workspace identity
+
+Each workspace definition has one recorded live Rex session ID. `start`, `use`,
+`switch`, `status`, and `stop` resolve that association even when an agent or user
+changes the session title. Global workspaces are identified by their saved name;
+local workspaces by the canonical configuration path. Records are scoped to
+Rex's `host_id` and account, so different hosts, accounts, and checkouts are kept
+separate. Rex must provide those identity fields through `rex whoami --json`.
+
+Private JSON records live under `~/.rexp/state/sessions/`. Each command checks
+the recorded ID against Rex's current sessions. A server connection failure is
+an error, not evidence that a session has closed. Closing an app window or
+restarting Rex does not remove the association; restored sessions with the same
+ID remain associated. If the session is gone, `switch` reports it missing and
+`start`/`use` can create a replacement. They never silently follow a different
+session that has inherited the old label.
+
+Startup is protected by a per-workspace OS lock, including across processes.
+Concurrent starts therefore reuse one session. The lock is released if a process
+exits or crashes. Record writes are atomic. A `creating` record is written before
+the creation RPC, `starting` once its ID is received, and `ready` after setup.
+An interrupted or uncertain creation blocks automatic retries to avoid duplicates.
+
+A detached observer removes the matching JSON record on Rex's actual
+`session_destroyed` event, even if no user `after_close` hook is configured. A
+late event for an older session cannot remove a replacement's association. Small
+`.known` ownership markers and `.lock` files remain; they are not active session
+records. Ownership markers prevent a closed workspace from adopting an unrelated
+session by a recycled label.
+
+Cleanup is best effort: failed startups, observer termination, and server
+restarts can leave a stale record. `status` validates it without modifying disk;
+`switch` and `stop` prune missing associations, while `start`/`use` replace them
+when creating a new session. User close hooks retain their existing disconnect
+limitations.
+
+### Adopt an existing or already renamed session
+
+Before a workspace has been tracked, a unique legacy `rexp:<name>` label can be
+adopted by `start`/`use` or `switch`. Existing sessions already renamed, or several
+legacy duplicates, need an explicit choice:
+
+```sh
+rex ls --json
+rexp bind my-app --session session:...
+rexp bind . --session session:...
+rexp bind --file ./workspace.yaml --session session:...
+```
+
+`bind` records the exact full ID without changing its title, selecting it in the
+app, running programs, or installing user lifecycle hooks. It only arms internal
+record cleanup. `--replace` explicitly changes an existing association and leaves
+the old session running. `--incomplete` records a session that still needs manual
+startup recovery. Binding normally marks it ready.
+
+If a creation failed before rexp received its ID, inspect Rex first. Bind the
+created session if one exists, or explicitly reset the association:
+
+```sh
+rexp bind my-app --forget
+```
+
+Forgetting never closes a session. A later `start`/`use` can create a replacement,
+so only forget after deciding what to do with any previously created session.
+
 ## Switch to an existing session
 
 ```sh
@@ -265,15 +330,17 @@ find running sessions; `rexp list` lists saved configurations.
 
 A target can be a full session ID, an exact session label (including unmanaged
 Rex sessions), or a global project shorthand: `my-app` also matches `rexp:my-app`.
-A full ID takes precedence. Multiple matches or labels differing only in case
-produce an error; use a full session ID to choose explicitly. Names are passed
+A full ID takes precedence, followed by an existing workspace association. Label
+ambiguities or case conflicts during legacy discovery produce an error; bind a
+workspace or use a full session ID to choose explicitly. Names are passed
 literally, so quote labels containing spaces. Named targets do not require a
 saved configuration or existing project directory.
 
 `.` and `--file` load the selected local configuration to identify its session,
-using the same path hash as `start`. They require a valid config but do not check
-root/pane directory existence. An incomplete `:starting` session can be selected
-for inspection using its full label or ID; shorthand does not select it.
+using the same persistent identity as `start`. They require a valid config but do
+not check root/pane directory existence. A recorded incomplete session can be
+selected for inspection by its workspace target. Untracked `:starting` sessions
+can be selected by their full label or ID. Switching does not mark them ready.
 
 Selection uses Rex Remote Control and honors `REX_CLIENT`, or an explicit
 `--client`. With multiple app clients, choose one explicitly. Selection errors
@@ -320,7 +387,7 @@ rexp stop my-app --yes
 
 Stop finds the same global or local session identity used by start, asks for confirmation, and closes the entire session through Rex. This includes all tabs, panes, running programs, and panes you added manually. Your project directory and YAML configuration are kept. `--yes` (or `-y`) skips confirmation. Closing the session containing the invoking terminal requires `--yes`; run stop from another session to use the normal prompt and see its final result.
 
-A missing session prints `Project "my-app" is not running.` and succeeds without prompting. Incomplete `:starting` sessions can also be stopped. Duplicate matches, case-conflicting labels, and a replacement session appearing during confirmation produce an error instead of guessing. The selected session ID and label are rechecked before closure. Renamed sessions that no longer carry their workspace label are not selected. Stop requires a readable, valid config but does not require its root/pane directories to still exist.
+A missing session prints `Project "my-app" is not running.` and succeeds without prompting. Recorded incomplete sessions can also be stopped. Ambiguous legacy matches and a replacement association appearing during confirmation produce an error instead of guessing. The session ID is rechecked under the startup lock before closure; a changed display title does not invalidate confirmation. Stop requires a readable, valid config but does not require its root/pane directories to still exist.
 
 An existing `after_close` observer handles the destruction event, just as when closing in Rex. Stop does not execute hooks itself, create an observer for reused sessions, or wait for background cleanup to finish. The documented close-hook limitations still apply. `before_close` remains unsupported. A failed Rex kill is reported and is not retried automatically; inspect the session before retrying.
 
@@ -337,16 +404,16 @@ Status loads the selected config and reads a single Rex session-list snapshot. I
 
 | JSON status | Meaning |
 | --- | --- |
-| `running` | Exactly one session has the expected workspace label. |
+| `running` | The recorded session ID is present, or a unique legacy label matches before migration. |
 | `missing` | No matching session exists. Human output says the project is not running. |
-| `incomplete` | Exactly one session has the expected `:starting` label. |
-| `ambiguous` | Multiple sessions match, including a ready/incomplete pair, or a label differs only in case. Matching IDs/labels are shown without choosing one. |
+| `incomplete` | The recorded startup is unfinished, creation returned no ID, or a legacy `:starting` label matches. |
+| `ambiguous` | Untracked legacy labels match multiple sessions or differ only in case. Matching IDs/labels are shown without choosing one. |
 
-A running session can contain exited programs or manual layout changes. Status does not compare the live layout to the config or establish whether services are ready. Renamed sessions that no longer match the workspace label are not tracked. Results describe the moment of the query and may change afterward.
+A running session can contain exited programs or manual layout changes. Status does not compare the live layout to the config or establish whether services are ready. Recorded sessions remain tracked after renaming. Results describe the moment of the query and may change afterward.
 
-All four observed states return exit status 0. Invalid arguments/configs, unreachable Rex, malformed responses, and cancellation return errors instead of being reported as missing. Use `--json` and inspect `status` in scripts. The JSON object contains `project`, `expected_label`, `status`, and `sessions` (an array of `session_id`/`label` objects, empty for missing); `reason` is included for ambiguity. It does not include commands or environment values. A missing named configuration is an error, distinct from a valid configuration with a missing session.
+All four observed states return exit status 0. Invalid arguments/configs, corrupt records, unreachable Rex, malformed responses, and cancellation return errors instead of being reported as missing. Use `--json` and inspect `status` in scripts. The JSON object contains `project`, `expected_label` (the default display label), `status`, and `sessions` (an array of `session_id`/`label` objects, empty for missing or interrupted creation without an ID); `reason` can explain ambiguity or incomplete creation. It does not include commands or environment values. A missing named configuration is an error, distinct from a valid configuration with a missing session.
 
-For an incomplete workspace, inspect it and use the matching `rexp stop` target before starting again. For ambiguous matches, inspect and rename duplicates/case conflicts in Rex. Status performs no recovery automatically.
+For an incomplete workspace, inspect it and stop the recorded session before starting again, or bind an explicitly recovered session. If no ID was recorded, use `bind --session` or `bind --forget` after inspection. For ambiguous legacy matches, bind the intended full ID. Status performs no recovery automatically.
 
 ## Lifecycle hooks
 
@@ -368,9 +435,9 @@ hooks:
 
 Hooks execute on the machine running rexp, in the project root, with the invoking environment plus project `env`. Tab/pane overrides do not apply. `REXP_PROJECT` identifies the project; `REXP_SESSION_ID` is empty before creation and contains the actual session ID for later phases. These metadata variables take precedence over configured values. Arguments remain literal; use an explicit shell for pipes, redirection, or expansion. Hook processes have closed stdin. Each command waits for the previous one and failure stops that phase. Shell-local changes do not carry into the next command or pane.
 
-Reusing a session runs no hooks and creates no additional close observer. Startup hook output goes to the invoking terminal. Before-start failure prevents creation; later failure preserves the session with its `:starting` label for inspection. Hooks are not automatically retried. Ctrl+C cancels startup. Existing sessions that were not started with a close observer do not acquire one on reuse.
+Reusing an already tracked session runs no hooks and creates no additional observer. First-time adoption and binding can arm an internal record-cleanup observer, but never install user close hooks on an existing session. Startup hook output goes to the invoking terminal. Before-start failure prevents creation; later failure preserves the incomplete session for inspection, even if its title changes. Hooks are not automatically retried. Ctrl+C cancels startup.
 
-Rexp uses [Rex's session-destroyed event](https://www.superlogical.com/rex/docs/reference/events) for `after_close`. A detached worker subscribes before startup is marked ready; subscription failure fails startup. Its private snapshot and output log live under `~/.rexp/state/hooks/` (directories 0700, files 0600 on Unix). The snapshot includes the configured project env and close commands; it is removed when the observer ends, while the `.json.log` remains for inspection. Close hooks use the startup snapshot even if you later edit the config. The background hook has a five-minute timeout, and writes output/errors to its log without terminal status notifications.
+Rexp uses [Rex's session-destroyed event](https://www.superlogical.com/rex/docs/reference/events) for record cleanup and `after_close`. A detached worker subscribes before startup is marked ready, including workspaces without user close hooks; subscription failure fails startup. Its private snapshot and output log live under `~/.rexp/state/hooks/` (directories 0700, files 0600 on Unix). The snapshot includes the configured project env and close commands; it is removed when the observer ends, while the `.json.log` remains for inspection. Record cleanup happens before user hooks, including when those hooks fail. Close hooks use the startup snapshot even if you later edit the config. The background hook has a five-minute timeout, and writes output/errors to its log without terminal status notifications.
 
 `before_close` is **not implemented**: Rex provides an event after destruction, rather than a documented interception point. A nonempty `hooks.before_close` is rejected. Close hooks are best effort, not durable jobs: server disconnections, observer termination, crashes, and machine shutdown do not guarantee execution. EOF/disconnect alone never triggers cleanup, and observers are not restarted or reattached automatically. Save cannot infer hooks from a live session.
 
@@ -562,13 +629,13 @@ rexp start my-app --client <rex-client-id-or-label>
 
 Requires the Rex CLI on `PATH` and a reachable Rex server. `start` validates the entire configuration and checks all configured directories before creating terminals. This initial implementation is intended for local workspaces; it inherits Rex's server selection environment (`REX_SERVER`). Directory checks run on the machine running rexp.
 
-Each project uses a session named `rexp:<project>`. A subsequent `start` selects that session without rerunning commands or applying configuration edits. Duplicate labels, labels differing only in case, and incomplete startups return errors. Session labels identify workspaces: renaming the session breaks this association. Avoid running simultaneous starts for the same project.
+Each project initially uses a session named `rexp:<project>`, tracked by its persistent session ID. A subsequent `start` reuses that ID without rerunning commands or applying configuration edits, even after a title change or restoration by Rex. Concurrent starts are serialized per workspace. Ambiguous legacy labels and incomplete startups return errors instead of creating duplicates. See [persistent workspace identity](#persistent-workspace-identity) for migration and recovery.
 
 Rexp creates tabs and nested splits using returned Rex IDs, passes commands as argument arrays, labels each pane, and sets each tab's configured focus. Commands run once when their panes are created. Rex owns the terminals after rexp exits. Panes remain open after commands exit so their output is visible; successfully creating a pane does not mean its application is healthy. There is no readiness checking or dependency ordering between pane commands.
 
 Selecting a session in the app requires Rex Remote Control. With multiple clients, use `--client` (or Rex's `REX_CLIENT` environment). `--background` skips app selection; it cannot be combined with `--client`. A selection error can occur after successful setup: retrying reuses the completed session.
 
-During creation, the session is named `rexp:<project>:starting`. If setup fails, it remains under that name with existing panes running. Further starts stop with an error rather than rerunning commands. Inspect the session in Rex; use `rexp stop <project>` (or the matching local/file target) before retrying, or finish it yourself and rename it to `rexp:<project>`. Rexp does not automatically delete sessions or undo commands after a failure.
+During creation, the initial title is `rexp:<project>:starting`. If setup fails, the recorded state remains incomplete with existing panes running. Further starts stop with an error rather than rerunning commands, even if the title has changed. Inspect the session in Rex; use `rexp stop <project>` (or the matching local/file target) before retrying, or finish setup manually and bind its full ID as ready. If creation returned no ID, inspect Rex and explicitly bind or forget the uncertain association. Rexp does not automatically delete sessions or undo commands after a failure.
 
 For a layout-only smoke test, use [the four-shell example](examples/four-shells.yaml), set `root` to an existing absolute directory, and save it as `~/.rexp/projects/four-shells.yaml`:
 

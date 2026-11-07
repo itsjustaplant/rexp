@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/itsjustaplant/rexp/internal/sessionstate"
 	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
@@ -33,6 +34,60 @@ func TestRunUsesProjectDirectoryEnvironmentAndStopsOnFailure(t *testing.T) {
 	err = Run(context.Background(), project, "", "after_start", [][]string{{"sh", "-c", "exit 7"}, {"sh", "-c", "echo should-not-run"}}, &out, &out)
 	if err == nil || !strings.Contains(err.Error(), "hooks.after_start") || out.Len() != 0 {
 		t.Fatalf("failure err=%v output=%s", err, &out)
+	}
+}
+
+func TestWorkerClearsOnlyMatchingRecordsOnActualClosure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX observer fixture")
+	}
+	for _, test := range []struct {
+		name, output, recordID string
+		hookFails, cleared     bool
+	}{
+		{"closed", "rexp-hook-ready\\nrexp-hook-closed\\n", "session:old", false, true},
+		{"server-disconnect", "rexp-hook-ready\\n", "session:old", false, false},
+		{"replacement", "rexp-hook-ready\\nrexp-hook-closed\\n", "session:new", false, false},
+		{"hook-failure", "rexp-hook-ready\\nrexp-hook-closed\\n", "session:old", true, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("USERPROFILE", home)
+			ref := sessionstate.Ref{Scope: sessionstate.Scope{HostID: "host", Account: "account"}, Workspace: "global:demo"}
+			store, err := sessionstate.Open(home, ref)
+			if err != nil {
+				t.Fatal(err)
+			}
+			release, err := store.Lock(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Save(test.recordID, "ready"); err != nil {
+				t.Fatal(err)
+			}
+			release()
+			bin := t.TempDir()
+			if err := os.WriteFile(filepath.Join(bin, "rex"), []byte("#!/bin/sh\nprintf '"+test.output+"'\n"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+			saved := snapshot{Version: 1, Session: "session:old", Record: &ref, Project: workspace.Project{Name: "demo", Root: home}}
+			if test.hookFails {
+				saved.Project.Hooks.AfterClose = [][]string{{"sh", "-c", "exit 7"}}
+			}
+			data, _ := json.Marshal(saved)
+			path := filepath.Join(home, "snapshot.json")
+			if err := os.WriteFile(path, data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			var out bytes.Buffer
+			_ = Worker(context.Background(), []string{path}, &out, &out)
+			record, _, err := store.Read()
+			if err != nil || (record == nil) != test.cleared {
+				t.Fatalf("record=%+v cleared=%v err=%v", record, test.cleared, err)
+			}
+		})
 	}
 }
 

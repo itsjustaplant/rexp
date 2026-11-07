@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.1 — 2026-11-07
+
+- Track workspaces by persistent Rex session ID so renaming or restoring a session does not break start, use, switch, status, or stop.
+- Serialize startup per workspace with OS file locks to prevent concurrent starts from creating duplicate sessions.
+- Clean matching records on session destruction, retain them across server restarts, and validate live IDs when close notifications are missed.
+- Add `bind` to associate already renamed sessions, select among legacy duplicates, and explicitly recover interrupted startup records.
+- Preserve incomplete startup state independently of session titles and report known session IDs in status output.
+- Scope records by Rex host/account and global project name or canonical local configuration path.
+
 ## 1.1.0 — 2026-11-03
 
 - Bundle a shared workspace skill for Codex and Claude Code with `skill show`, `skill install`, and `skill remove` commands.

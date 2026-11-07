@@ -18,12 +18,15 @@ import (
 
 	"github.com/itsjustaplant/rexp/internal/hooks"
 	"github.com/itsjustaplant/rexp/internal/panerunner"
+	"github.com/itsjustaplant/rexp/internal/sessionstate"
 	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
 type Client struct {
-	run   func(context.Context, ...string) ([]byte, error)
-	watch func(context.Context, *workspace.Project, string) error
+	run          func(context.Context, ...string) ([]byte, error)
+	watch        func(context.Context, *workspace.Project, string) error
+	persistent   bool
+	watchManaged func(context.Context, *workspace.Project, string, sessionstate.Ref) error
 }
 type Options struct {
 	Stdout     io.Writer
@@ -36,7 +39,7 @@ type Result struct {
 	Reused    bool
 }
 
-func NewClient() *Client { return &Client{run: execute} }
+func NewClient() *Client { return &Client{run: execute, persistent: true} }
 
 func execute(ctx context.Context, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -60,43 +63,35 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 	if project == nil {
 		return Result{}, errors.New("project has no tabs")
 	}
-	if len(project.Hooks.BeforeStart) == 0 {
-		if err := preflight(project); err != nil {
-			return Result{}, err
-		}
+	store, err := client.sessionStore(ctx, project)
+	if err != nil {
+		return Result{}, err
 	}
+	release, err := lockStore(ctx, store)
+	if err != nil {
+		return Result{}, err
+	}
+	defer release()
 	label := SessionLabel(project)
 	pending := label + ":starting"
-	var listing struct {
-		Sessions []struct {
-			ID    string `json:"session_id"`
-			Label string `json:"label"`
-		} `json:"sessions"`
+	sessions, err := client.sessions(ctx)
+	if err != nil {
+		return Result{}, err
 	}
-	if err := client.json(ctx, &listing, "ls", "--json"); err != nil {
+	status, err := resolve(project, store, sessions)
+	if err != nil {
 		return Result{}, err
 	}
 	result := Result{}
-	for _, session := range listing.Sessions {
-		if strings.EqualFold(session.Label, pending) {
-			return Result{}, fmt.Errorf("session %s has an incomplete startup (%q); inspect it in Rex before closing it or renaming it", session.ID, session.Label)
+	if status.Status == WorkspaceRunning {
+		if err := client.adopt(ctx, project, status, store); err != nil {
+			return result, err
 		}
-		if !strings.EqualFold(session.Label, label) {
-			continue
-		}
-		if session.Label != label {
-			return Result{}, fmt.Errorf("session label %q differs only in case from %q; rename it to avoid selecting the wrong project", session.Label, label)
-		}
-		if result.SessionID != "" {
-			return Result{}, fmt.Errorf("multiple sessions are named %q; rename duplicates in Rex before starting", label)
-		}
-		if session.ID == "" {
-			return Result{}, errors.New("Rex returned a session without an ID")
-		}
-		result = Result{SessionID: session.ID, Reused: true}
-	}
-	if result.Reused {
+		result = Result{SessionID: status.Sessions[0].ID, Reused: true}
 		return result, client.selectSession(ctx, result, options)
+	}
+	if status.Status != WorkspaceMissing {
+		return result, fmt.Errorf("workspace %q is %s: %s; inspect Rex and use rexp bind to resolve it", project.Name, status.Status, status.Reason)
 	}
 	out, stderr := options.Stdout, options.Stderr
 	if out == nil {
@@ -117,6 +112,11 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 	}
 
 	first := firstPane(project.Tabs[0].Layout)
+	if store != nil {
+		if err := store.Save("", "creating"); err != nil {
+			return result, err
+		}
+	}
 	args := withCommand([]string{"new", pending, "--window", project.Tabs[0].Name, "--cwd", first.Cwd, "--keep-open", "--json"}, commands[first.Pane])
 	var created struct {
 		SessionID string `json:"session_id"`
@@ -128,6 +128,11 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 		return Result{}, fmt.Errorf("create workspace: %w; check Rex for %q before retrying", err, pending)
 	}
 	result.SessionID = created.SessionID
+	if store != nil && result.SessionID != "" {
+		if err := store.Save(result.SessionID, "starting"); err != nil {
+			return result, fmt.Errorf("record created session %s: %w; inspect Rex before retrying", result.SessionID, err)
+		}
+	}
 	if result.SessionID == "" || len(created.Windows) == 0 || len(created.Windows[0].Blocks) == 0 || created.Windows[0].Blocks[0] == "" {
 		return result, fmt.Errorf("Rex returned incomplete session creation data; inspect %q before retrying", pending)
 	}
@@ -174,7 +179,11 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 	if err := hooks.Run(ctx, project, result.SessionID, "after_start", project.Hooks.AfterStart, out, stderr); err != nil {
 		return fail(err)
 	}
-	if len(project.Hooks.AfterClose) > 0 {
+	if store != nil {
+		if err := client.observe(ctx, project, result.SessionID, store); err != nil {
+			return fail(fmt.Errorf("arm session close observer: %w", err))
+		}
+	} else if len(project.Hooks.AfterClose) > 0 {
 		watch := client.watch
 		if watch == nil {
 			watch = hooks.Watch
@@ -185,6 +194,11 @@ func (client *Client) Start(ctx context.Context, project *workspace.Project, opt
 	}
 	if err := client.command(ctx, "session", "rename", result.SessionID, label); err != nil {
 		return fail(err)
+	}
+	if store != nil {
+		if err := store.Save(result.SessionID, "ready"); err != nil {
+			return fail(err)
+		}
 	}
 	return result, client.selectSession(ctx, result, options)
 }

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/itsjustaplant/rexp/internal/sessionstate"
 	"github.com/itsjustaplant/rexp/internal/workspace"
 )
 
@@ -38,11 +39,21 @@ type snapshot struct {
 	Version int               `json:"version"`
 	Session string            `json:"session"`
 	Project workspace.Project `json:"project"`
+	Record  *sessionstate.Ref `json:"record,omitempty"`
 }
 
 // Watch detaches a worker only after Rex acknowledges its event subscription.
 // The worker snapshots the hook, and writes subsequent output to a private log.
 func Watch(ctx context.Context, project *workspace.Project, session string) error {
+	return watch(ctx, project, session, nil)
+}
+
+// WatchManaged also removes the matching session record after actual closure.
+func WatchManaged(ctx context.Context, project *workspace.Project, session string, ref sessionstate.Ref) error {
+	return watch(ctx, project, session, &ref)
+}
+
+func watch(ctx context.Context, project *workspace.Project, session string, ref *sessionstate.Ref) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
@@ -51,7 +62,12 @@ func Watch(ctx context.Context, project *workspace.Project, session string) erro
 	if err = os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
-	hash := sha256.Sum256([]byte(os.Getenv("REX_SERVER") + "\x00" + session))
+	key := os.Getenv("REX_SERVER") + "\x00" + session
+	if ref != nil {
+		encoded, _ := json.Marshal(ref)
+		key += "\x00" + string(encoded)
+	}
+	hash := sha256.Sum256([]byte(key))
 	path := filepath.Join(dir, fmt.Sprintf("%x.json", hash[:]))
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
@@ -59,7 +75,7 @@ func Watch(ctx context.Context, project *workspace.Project, session string) erro
 	}
 	// Store only data needed by this worker, rather than unrelated pane commands.
 	saved := workspace.Project{Name: project.Name, Root: project.Root, Env: project.Env, Hooks: workspace.Hooks{AfterClose: project.Hooks.AfterClose}}
-	err = json.NewEncoder(file).Encode(snapshot{Version: 1, Session: session, Project: saved})
+	err = json.NewEncoder(file).Encode(snapshot{Version: 1, Session: session, Project: saved, Record: ref})
 	closeErr := file.Close()
 	if err == nil {
 		err = closeErr
@@ -190,7 +206,19 @@ func Worker(ctx context.Context, args []string, out, stderr io.Writer) error {
 	}
 	cleanup, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
-	return Run(cleanup, &data.Project, data.Session, "after_close", data.Project.Hooks.AfterClose, stderr, stderr)
+	var recordErr error
+	if data.Record != nil {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			store, openErr := sessionstate.Open(home, *data.Record)
+			err = openErr
+			if err == nil {
+				err = store.ClearIfSession(cleanup, data.Session)
+			}
+		}
+		recordErr = err
+	}
+	return errors.Join(recordErr, Run(cleanup, &data.Project, data.Session, "after_close", data.Project.Hooks.AfterClose, stderr, stderr))
 }
 
 type lockedWriter struct {

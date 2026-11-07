@@ -36,7 +36,11 @@ func statusProjectCommand() *cobra.Command {
 			case rex.WorkspaceMissing:
 				_, err = fmt.Fprintf(out, "Project %q is not running.\n", project.Name)
 			case rex.WorkspaceIncomplete:
-				_, err = fmt.Fprintf(out, "Project %q has an incomplete startup (session %s).\n", project.Name, result.Sessions[0].ID)
+				if len(result.Sessions) == 0 {
+					_, err = fmt.Fprintf(out, "Project %q has an incomplete startup: %s.\n", project.Name, result.Reason)
+				} else {
+					_, err = fmt.Fprintf(out, "Project %q has an incomplete startup (session %s).\n", project.Name, result.Sessions[0].ID)
+				}
 			case rex.WorkspaceAmbiguous:
 				if _, err = fmt.Fprintf(out, "Project %q has an ambiguous workspace: %s.\n", project.Name, result.Reason); err != nil {
 					return err

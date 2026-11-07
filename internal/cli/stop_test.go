@@ -55,7 +55,7 @@ func TestStopCommandConfirmationAndConfigurationPreservation(t *testing.T) {
 				listing = `{"sessions":[]}`
 			}
 			t.Setenv("REXP_STOP_LISTING", listing)
-			script := `#!/bin/sh
+			script := "#!/bin/sh\n" + rexIdentityStub + `
 printf '%s\n' "$@" >> "$REXP_STOP_LOG"
 case "$1" in
  ls) printf '%s\n' "$REXP_STOP_LISTING" ;;

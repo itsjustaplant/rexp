@@ -145,7 +145,7 @@ func TestInitLaunchesTwoPaneDemoWithoutSavingOrRerunningIt(t *testing.T) {
 	t.Setenv("PATH", bin)
 	t.Setenv("REXP_INIT_CALLS", calls)
 	t.Setenv("REXP_INIT_READY", filepath.Join(bin, "ready"))
-	script := `#!/bin/sh
+	script := "#!/bin/sh\n" + rexIdentityStub + `
 printf '%s\n' "$*" >> "$REXP_INIT_CALLS"
 if [ "$1" = -C ]; then shift 2; fi
 case "$1" in

@@ -296,8 +296,8 @@ func TestStartPreflightBeforeMutation(t *testing.T) {
 	if _, err := (&Client{run: fake.run}).Start(context.Background(), project, Options{}); err == nil {
 		t.Fatal("accepted missing cwd")
 	}
-	if len(fake.calls) != 0 {
-		t.Fatalf("called Rex before preflight: %v", fake.calls)
+	if !reflect.DeepEqual(fake.calls, [][]string{{"ls", "--json"}}) {
+		t.Fatalf("mutated Rex before preflight: %v", fake.calls)
 	}
 }
 

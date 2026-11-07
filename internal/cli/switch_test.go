@@ -21,7 +21,7 @@ func switchFixture(t *testing.T) string {
 	calls := filepath.Join(bin, "calls.log")
 	t.Setenv("PATH", bin)
 	t.Setenv("REXP_SWITCH_CALLS", calls)
-	script := `#!/bin/sh
+	script := "#!/bin/sh\n" + rexIdentityStub + `
 printf '%s\n' "$*" >> "$REXP_SWITCH_CALLS"
 if [ "$1" = ls ] && [ "$2" = --json ]; then
   printf '%s\n' "$REXP_SWITCH_LISTING"
@@ -44,7 +44,7 @@ func TestSwitchCLINamedSessionWithoutConfig(t *testing.T) {
 		t.Fatalf("output=%q err=%v", out, err)
 	}
 	data, err := os.ReadFile(calls)
-	if err != nil || string(data) != "ls --json\n-C macbook do session.select session_id=session:1\n" {
+	if err != nil || string(data) != "ls --json\nls --json\n-C macbook do session.select session_id=session:1\n" {
 		t.Fatalf("unexpected Rex calls %q: %v", data, err)
 	}
 }
@@ -100,7 +100,7 @@ func TestSwitchCLIRejectsMissingAndInvalidTargets(t *testing.T) {
 		t.Fatalf("missing target: %q %v", out, err)
 	}
 	data, err := os.ReadFile(calls)
-	if err != nil || string(data) != "ls --json\n" {
+	if err != nil || string(data) != "ls --json\nls --json\n" {
 		t.Fatalf("missing target mutated Rex: %q %v", data, err)
 	}
 }

@@ -45,6 +45,7 @@ func NewCommand(version string) *cobra.Command {
 		deleteProjectCommand(),
 		editProjectCommand(),
 		startProjectCommand(),
+		bindProjectCommand(),
 		switchSessionCommand(),
 		useProjectCommand(),
 		stopProjectCommand(),

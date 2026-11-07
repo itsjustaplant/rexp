@@ -1,6 +1,6 @@
 ---
 name: rexp
-description: Manage saved Rex project workspaces with rexp. Use to create, save, configure, validate, start, use, switch, inspect, stop, or delete rexp workspaces; use Rex directly for individual tabs and panes.
+description: Manage saved Rex project workspaces with rexp. Use to configure, start, use, switch, bind, inspect, save, stop, or delete workspaces; use Rex directly for individual tabs and panes.
 ---
 
 # rexp workspaces
@@ -87,10 +87,12 @@ rexp start --file ./config/workspace.yaml --client <client-id-or-label>
 
 Starting executes configured commands and hooks when creating a session. Review
 unfamiliar configs before launching. A repeated start reuses the existing session
-without applying config edits or rerunning commands. Global labels are
-`rexp:<name>`; file targets include a path hash, so use the matching file target
-instead of constructing a label yourself. Do not rename managed sessions: their
-labels establish the association.
+without applying config edits or rerunning commands. A recorded session ID
+establishes the association, so title changes are safe. Records persist across
+Rex restarts and are validated against its live sessions. Global workspace keys
+use saved names; local keys use canonical config paths, scoped by Rex host and
+account. Initial labels are `rexp:<name>` with a path hash for file targets.
+Use the matching file target rather than constructing its display label.
 
 `--background` skips app selection and cannot combine with `--client`. With
 multiple Rex clients, use the user's intended client or `REX_CLIENT`; do not guess.
@@ -101,8 +103,8 @@ Status JSON has `running`, `missing`, `incomplete`, or `ambiguous`, all with exi
 status 0. Inspect `status`, not just the exit code. It reports session matching,
 not service readiness. Verify programs separately if the request needs that.
 
-On a failed start, inspect status before retrying. An incomplete `:starting`
-session is preserved with programs possibly running; do not blindly rerun or
+On a failed start, inspect status before retrying. The incomplete state persists
+even if the session title changes. Programs may be running; do not blindly rerun or
 delete it. Explain the state and use the matching stop target when the user
 authorizes closing it. Ambiguous matches need explicit inspection in Rex.
 An app selection error can follow successful setup; retrying a completed start
@@ -119,11 +121,32 @@ the Rex app. It shares `start`'s reuse, hooks, and failure handling; it has no
 global project shorthand (`my-app` matches `rexp:my-app`). It never creates a
 session or runs configured programs/hooks. Missing targets are errors; use
 `rex ls` to discover live sessions. Full IDs take precedence; ambiguous names
-require an explicit ID. Named targets do not require a saved configuration.
+require an explicit ID. A workspace association takes precedence over labels;
+named targets do not require a saved configuration.
 `rexp switch .` and `rexp switch --file <path>` resolve a local config's identity.
 Use `--client` for a specific Rex app, or preserve `REX_CLIENT`.
-An incomplete startup can be selected for inspection by full ID or label, but
-switching does not repair it. Shorthand does not select `:starting` sessions.
+A recorded incomplete session can be selected by its workspace target for
+inspection. Untracked legacy `:starting` sessions require their full ID/label.
+Switching never marks an incomplete session ready.
+
+## Recover an existing association
+
+`start`/`use` or `switch` can adopt a unique legacy workspace label before an
+association exists. For already renamed sessions or legacy duplicates, inspect
+`rex ls --json`, then use `rexp bind <project> --session <full-session-id>` (also
+supports `.` or `--file`). Binding does not rename/select the session or run its
+programs/user hooks. `--replace` explicitly changes an association while keeping
+the previous session alive; `--incomplete` preserves an unfinished startup state.
+
+If startup was interrupted before its ID was recorded, status reports incomplete
+with no session ID. Inspect Rex, then bind the actual session, or use `rexp bind
+<target> --forget` only after deciding what to do with any created session.
+Forgetting does not close it and permits a later start to create a replacement.
+Do not forget an association merely to bypass incomplete/ambiguous startup.
+
+Internal close-event cleanup removes only a matching record. A disconnect is
+not closure; command-time live validation handles missed events. Do not delete
+the runtime state directory to resolve session title changes.
 
 ## Stop versus delete
 

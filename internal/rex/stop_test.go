@@ -66,20 +66,25 @@ func TestStopRechecksAfterConfirmation(t *testing.T) {
 	for _, test := range []struct {
 		name, listing string
 		wantError     bool
+		wantStopped   bool
 	}{
-		{"closed", `{"sessions":[]}`, false},
-		{"replacement", stopListing("session:replacement", "rexp:demo"), true},
-		{"renamed", stopListing("session:original", "different"), false},
-		{"pending-changed", stopListing("session:original", "rexp:demo:starting"), true},
+		{"closed", `{"sessions":[]}`, false, false},
+		{"replacement", stopListing("session:replacement", "rexp:demo"), true, false},
+		{"renamed", stopListing("session:original", "different"), false, false},
+		{"pending-changed", stopListing("session:original", "rexp:demo:starting"), false, true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			fake := &fakeRex{listing: test.listing}
 			client := &Client{run: fake.run}
 			stopped, err := client.Stop(context.Background(), projectFixture(t), StopTarget{ID: "session:original", Label: "rexp:demo"})
-			if stopped || (err != nil) != test.wantError {
+			if stopped != test.wantStopped || (err != nil) != test.wantError {
 				t.Fatalf("stopped=%v err=%v", stopped, err)
 			}
-			if len(fake.calls) != 1 {
+			wantCalls := 1
+			if test.wantStopped {
+				wantCalls = 2
+			}
+			if len(fake.calls) != wantCalls {
 				t.Fatal("killed a stale or replacement target")
 			}
 		})

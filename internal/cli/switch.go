@@ -15,7 +15,7 @@ func switchSessionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "switch <session>",
 		Short:   "Switch the Rex app to an existing session",
-		Long:    "Select an existing Rex session by full ID, exact label, or global project name.\nA project name also matches rexp:<name>; ambiguous matches require a full session ID.\nUse . or --file for a repository-local workspace. Never creates sessions or runs hooks.",
+		Long:    "Select an existing Rex session by full ID, workspace association, or exact label.\nWorkspace IDs survive title changes; untracked project names can match rexp:<name>.\nUse . or --file for a repository-local workspace. Never creates sessions or runs hooks.",
 		Example: "  rexp switch my-app\n  rexp switch rexp:my-app\n  rexp switch session:...\n  rexp switch .\n  rexp switch --file ./workspace.yaml --client macbook",
 		Args: func(cmd *cobra.Command, args []string) error {
 			if err := target.args(cmd, args); err != nil {
@@ -30,17 +30,18 @@ func switchSessionCommand() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var name string
+			var session rex.StatusSession
+			var err error
+			client := rex.NewClient()
 			if cmd.Flags().Changed("file") || args[0] == "." {
-				project, err := target.load(cmd, args)
-				if err != nil {
-					return err
+				project, loadErr := target.load(cmd, args)
+				if loadErr != nil {
+					return loadErr
 				}
-				name = rex.SessionLabel(project)
+				session, err = client.SwitchProject(cmd.Context(), project, appClient)
 			} else {
-				name = args[0]
+				session, err = client.Switch(cmd.Context(), args[0], appClient)
 			}
-			session, err := rex.NewClient().Switch(cmd.Context(), name, appClient)
 			if err != nil {
 				return err
 			}

@@ -75,7 +75,7 @@ func configureCompletions(root *cobra.Command) {
 	root.ValidArgsFunction = cobra.NoFileCompletions
 	for _, cmd := range root.Commands() {
 		switch cmd.Name() {
-		case "start", "switch", "use", "stop", "status", "edit", "validate":
+		case "start", "bind", "switch", "use", "stop", "status", "edit", "validate":
 			cmd.ValidArgsFunction = completeProjects(true)
 		case "delete", "search":
 			cmd.ValidArgsFunction = completeProjects(false)

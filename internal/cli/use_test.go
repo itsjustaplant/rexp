@@ -37,7 +37,7 @@ func TestUseStartsThenReusesAndSelectsAfterStartup(t *testing.T) {
 	t.Setenv("PATH", bin)
 	t.Setenv("REXP_USE_CALLS", calls)
 	t.Setenv("REXP_USE_READY", filepath.Join(bin, "ready"))
-	script := `#!/bin/sh
+	script := "#!/bin/sh\n" + rexIdentityStub + `
 printf '%s\n' "$*" >> "$REXP_USE_CALLS"
 if [ "$1" = -C ]; then shift 2; fi
 case "$1" in
